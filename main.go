@@ -2,86 +2,64 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"xmlui-mcp/pkg/xmluimcp"
-	"xmlui-test-server"
+	"xmlui/pkg/server"
+
+	"github.com/spf13/cobra"
 )
 
-func launchBrowser(url string) {
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = "open"
-		args = []string{url}
-	case "windows":
-		cmd = "rundll32"
-		args = []string{"url.dll,FileProtocolHandler", url}
-	default:
-		cmd = "xdg-open"
-		args = []string{url}
-	}
-
-	err := exec.Command(cmd, args...).Start()
-	if err != nil {
-		log.Printf("Failed to launch browser: %v", err)
-	}
-}
-
-func injectPgPort(pgConnStr, pgPort string) string {
-	if pgConnStr == "" || pgPort == "" {
-		return pgConnStr
-	}
-	if strings.HasPrefix(pgConnStr, "postgres://") || strings.HasPrefix(pgConnStr, "postgresql://") {
-		u, err := url.Parse(pgConnStr)
-		if err == nil {
-			if u.Port() == "" || u.Port() != pgPort {
-				u.Host = u.Hostname() + ":" + pgPort
-				return u.String()
-			}
+func getStartScript(clientDir string) (startScriptPath string, err error) {
+	ensureRelative := func(p string) string {
+		if !filepath.IsAbs(p) && !strings.HasPrefix(p, "."+string(os.PathSeparator)) && !strings.HasPrefix(p, ".."+string(os.PathSeparator)) {
+			return "." + string(os.PathSeparator) + p
 		}
-		return pgConnStr
+		return p
 	}
-	re := regexp.MustCompile(`port=\d+`)
-	if re.MatchString(pgConnStr) {
-		return re.ReplaceAllString(pgConnStr, "port="+pgPort)
+
+	if runtime.GOOS == "windows" {
+		powShellScript := filepath.Join(clientDir, "start.ps1")
+		if info, err := os.Stat(powShellScript); err == nil && !info.IsDir() {
+			return ensureRelative(powShellScript), nil
+		}
+
+		batchScript := filepath.Join(clientDir, "start.bat")
+		if info, err := os.Stat(batchScript); err == nil && !info.IsDir() {
+			return ensureRelative(batchScript), nil
+		}
+	} else {
+		shScript := filepath.Join(clientDir, "start.sh")
+		if info, err := os.Stat(shScript); err == nil && !info.IsDir() {
+			return ensureRelative(shScript), nil
+		}
 	}
-	return pgConnStr + " port=" + pgPort
+
+	return "", errors.New("no start script found")
 }
 
-func downloadAndExtractZip(url, dest string) error {
-	resp, err := http.Get(url)
+func unzip(src, dest string) error {
+	r, err := zip.OpenReader(src)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	r, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
-	if err != nil {
-		return err
-	}
+	defer r.Close()
 
 	for _, f := range r.File {
 		fpath := filepath.Join(dest, f.Name)
+
+		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+			return fmt.Errorf("%s: illegal file path", fpath)
+		}
 
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(fpath, os.ModePerm)
@@ -116,7 +94,6 @@ func downloadAndExtractZip(url, dest string) error {
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }
@@ -133,20 +110,22 @@ var mcpCmd = &cobra.Command{
 
 		// Configure the XMLUI MCP server
 		config := xmluimcp.ServerConfig{
-			XMLUIDir:      mcpXMLUIDir,
-			HTTPMode:      mcpHTTPMode,
-			Port:          mcpPort,
-			AnalyticsFile: mcpAnalyticsFile,
+			ExampleDirs:  mcpExampleDirs,
+			HTTPMode:     mcpHTTPMode,
+			Port:         mcpPort,
+			XMLUIVersion: mcpXMLUIVersion,
 		}
 
-		// Create the server instance using the local library
+		fmt.Fprintf(os.Stderr, "Initializing MCP server...\n")
 		server, err := xmluimcp.NewServer(config)
 		if err != nil {
+			if errors.Is(err, xmluimcp.ErrVersionNotFound) && mcpXMLUIVersion != "" {
+				fmt.Fprintf(os.Stderr, "\nError: The specified XMLUI version '%s' was not found.\nPlease check if it is a valid version.\n", mcpXMLUIVersion)
+				os.Exit(1)
+			}
 			log.Fatalf("Failed to create XMLUI MCP server: %v", err)
 		}
-
-		server.PrintStartupInfo()
-
+		fmt.Fprintf(os.Stderr, "Inicialization Done!\n")
 		if mcpHTTPMode {
 			if err := server.ServeHTTP(); err != nil {
 				log.Fatalf("Server error: %v", err)
@@ -159,150 +138,109 @@ var mcpCmd = &cobra.Command{
 	},
 }
 
-var scaffoldCmd = &cobra.Command{
-	Use:   "scaffold [template]",
-	Short: "Scaffolds a new project from a template",
-	Long: `Scaffolds a new project from available templates.
-
-Available templates:
-  hello-world    - A minimal app to get you started with XMLUI
-  xmlui-invoice  - A complete business application for invoice management`,
-	Args: cobra.ExactArgs(1),
+var runCmd = &cobra.Command{
+	Use:   "run [dir]",
+	Short: "Runs the XMLUI server",
+	Long: `Runs the XMLUI server at the current working directory, or at the directory specified by the first argument.
+If the first argument is a zip file, it will extract the contents next to it and run in that directory.
+If the directory contains a start.sh, start.ps1 or start.bat file,
+it will run that, instead of starting the server`,
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		template := args[0]
-		switch template {
-		case "xmlui-invoice":
-			fmt.Println("Scaffolding xmlui-invoice project...")
-
-			zipURL := "https://github.com/xmlui-org/xmlui-invoice/archive/refs/heads/hajagosnorbert/demo.zip"
-			targetDir := "xmlui-invoice"
-
-			if _, err := os.Stat(targetDir); err == nil {
-				log.Fatalf("Directory %s already exists", targetDir)
-			}
-
-			fmt.Println("Downloading and extracting xmlui-invoice...")
-			if err := downloadAndExtractZip(zipURL, "."); err != nil {
-				log.Fatalf("Failed to download and extract: %v", err)
-			}
-
-			extractedDir := "xmlui-invoice-hajagosnorbert-demo"
-			if err := os.Rename(extractedDir, targetDir); err != nil {
-				log.Fatalf("Failed to rename directory: %v", err)
-			}
-
-			fmt.Println("\nScaffolding complete!")
-			fmt.Printf("Project created in: %s\n", targetDir)
-			fmt.Println("\nNavigate and start the project by running:\n")
-			fmt.Printf("  cd %s && xmlui serve\n", targetDir)
-
-		case "hello-world":
-			fmt.Println("Scaffolding hello-world not yet implemented")
-		default:
-			fmt.Printf("Error: unknown template %q\n", template)
-			fmt.Println("Available templates:")
-			fmt.Println("  hello-world    - A minimal app to get you started with XMLUI")
-			fmt.Println("  xmlui-invoice  - A complete business application for invoice management")
-			os.Exit(1)
-		}
-	},
-}
-
-var serveCmd = &cobra.Command{
-	Use:   "serve [client-dir]",
-	Short: "Starts the XMLUI server",
-	Args:  cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		log.SetFlags(log.Lshortfile | log.LstdFlags)
-		log.Println("Server starting...")
-
-		pwd, err := os.Getwd()
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("Working directory: %s", pwd)
-
-		clientDir := "client"
+		clientDir := ""
 		if len(args) > 0 {
 			clientDir = args[0]
 		}
 
-		showResponsesEnabled := serveShowResponses
-		finalPgConnStr := injectPgPort(servePgConnStr, servePgPort)
+		if strings.HasSuffix(strings.ToLower(clientDir), ".zip") {
+			baseName := filepath.Base(clientDir)
+			ext := filepath.Ext(baseName)
+			dirName := baseName[:len(baseName)-len(ext)]
+			parentDir := filepath.Dir(clientDir)
+			targetDir := filepath.Join(parentDir, dirName)
 
-		config := xmluibackend.ServerConfig{
-			DBPath:        serveDBPath,
-			PgConnStr:     finalPgConnStr,
-			ExtensionPath: serveExtension,
-			APIDescPath:   serveAPIDesc,
-			ShowResponses: showResponsesEnabled,
+			if _, err := os.Stat(targetDir); !os.IsNotExist(err) {
+				entries, err := os.ReadDir(parentDir)
+				if err != nil {
+					log.Fatalf("Failed to read directory %s: %v", parentDir, err)
+				}
+
+				maxNum := 0
+				prefix := dirName + "-"
+
+				for _, entry := range entries {
+					name := entry.Name()
+					if strings.HasPrefix(name, prefix) {
+						if num, err := strconv.Atoi(name[len(prefix):]); err == nil {
+							if num > maxNum {
+								maxNum = num
+							}
+						}
+					}
+				}
+				targetDir = filepath.Join(parentDir, fmt.Sprintf("%s-%d", dirName, maxNum+1))
+			}
+
+			fmt.Printf("Extracting %s to %s...\n", clientDir, targetDir)
+			if err := unzip(clientDir, targetDir); err != nil {
+				log.Fatalf("Failed to extract zip file: %v", err)
+			}
+			clientDir = targetDir
 		}
 
-		server, err := xmluibackend.NewServer(config)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer server.Close()
-
-		mux := http.NewServeMux()
-		server.SetupRoutes(mux, clientDir)
-
-		log.Printf("Server configuration:")
-		log.Printf("- Port: %s", servePort)
-		log.Printf("- API Description: %s", serveAPIDesc)
-		log.Printf("- Extension: %s", serveExtension)
-		log.Printf("- Show Responses: %v", showResponsesEnabled)
-		log.Printf("- Client Directory: %s", clientDir)
-		if servePgConnStr != "" {
-			log.Printf("- Database: PostgreSQL")
-		} else {
-			os.Setenv("STEAMPIPE_CACHE", "false")
-			log.Printf("- Database: SQLite (%s)", serveDBPath)
+		// Run a start script instead of the server if the directory has one
+		if startScriptPath, err := getStartScript(clientDir); err == nil {
+			fmt.Printf("Executing found start script at: %s\n", startScriptPath)
+			cmd := exec.Command(startScriptPath)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				var exitErr *exec.ExitError
+				if errors.As(err, &exitErr) {
+					os.Exit(exitErr.ExitCode())
+				}
+				fmt.Printf("Failed to execute start script: %v", err)
+				os.Exit(1)
+			}
+			return
 		}
 
-		log.Printf("Opening web browser...")
-		launchBrowser(fmt.Sprintf("http://localhost:%s", servePort))
+		config := server.Config{
+			Dir:  clientDir,
+			Port: runPort,
+		}
 
-		log.Printf("Server listening on http://localhost:%s...", servePort)
-		if err := http.ListenAndServe("127.0.0.1:"+servePort, xmluibackend.CORSMiddleware(mux)); err != nil {
+		if err := server.Start(config); err != nil {
 			log.Fatal(err)
 		}
 	},
 }
 
-var (
-	mcpXMLUIDir      string
-	mcpPort          string
-	mcpAnalyticsFile string
-	mcpHTTPMode      bool
+func init() {
+	setupMcpCmd()
+	setupRunCmd()
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+}
 
-	servePort         string
-	serveExtension    string
-	serveAPIDesc      string
-	serveDBPath       string
-	serveShowResponses bool
-	servePgConnStr    string
-	servePgPort       string
+var (
+	mcpExampleDirs  []string
+	mcpPort         string
+	mcpHTTPMode     bool
+	mcpXMLUIVersion string
+
+	runPort string
 )
 
-func init() {
-	// MCP command flags
-	mcpCmd.Flags().StringVar(&mcpXMLUIDir, "xmlui-dir", "", "Path to XMLUI source directory")
-	mcpCmd.Flags().StringVar(&mcpPort, "port", "9090", "Port to run HTTP server on")
-	mcpCmd.Flags().StringVar(&mcpAnalyticsFile, "analytics-file", "./mcp-analytics.json", "Path to analytics file")
+func setupMcpCmd() {
+	mcpCmd.Flags().StringSliceVarP(&mcpExampleDirs, "example", "e", []string{}, "`<path>` to example directory (option can be repeated)")
+	mcpCmd.Flags().StringVarP(&mcpPort, "port", "p", "9090", "`<port>` to run the HTTP server on")
 	mcpCmd.Flags().BoolVar(&mcpHTTPMode, "http", false, "Run as HTTP server")
-
-	serveCmd.Flags().StringVar(&servePort, "port", "8080", "Port to run the server on")
-	serveCmd.Flags().StringVarP(&servePort, "p", "p", "8080", "Port to run the server on (shorthand)")
-	serveCmd.Flags().StringVar(&serveExtension, "extension", "", "Path to SQLite extension to load")
-	serveCmd.Flags().StringVar(&serveAPIDesc, "api", "api.json", "Path to API description file")
-	serveCmd.Flags().StringVar(&serveDBPath, "db", "data.db", "Path to SQLite database file")
-	serveCmd.Flags().BoolVar(&serveShowResponses, "show-responses", false, "Enable logging of SQL query responses")
-	serveCmd.Flags().BoolVarP(&serveShowResponses, "s", "s", false, "Enable logging of SQL query responses (shorthand)")
-	serveCmd.Flags().StringVar(&servePgConnStr, "pg-conn", "", "PostgreSQL connection string")
-	serveCmd.Flags().StringVar(&servePgPort, "pg-port", "", "PostgreSQL port (overrides port in --pg-conn)")
-
+	mcpCmd.Flags().StringVar(&mcpXMLUIVersion, "xmlui-version", "", "Specific XMLUI `<version>` to use for documentation (e.g. 0.11.4)")
 	rootCmd.AddCommand(mcpCmd)
-	rootCmd.AddCommand(scaffoldCmd)
-	rootCmd.AddCommand(serveCmd)
+}
+
+func setupRunCmd() {
+	runCmd.Flags().StringVarP(&runPort, "port", "p", "", "`<port>` to run the HTTP server on")
+	rootCmd.AddCommand(runCmd)
 }
