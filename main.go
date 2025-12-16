@@ -103,7 +103,7 @@ var newListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Lists the available templates",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Listing the commands... (or not. Just a test cmd)")
+		newcmd.HandleNewListCmd()
 	},
 }
 

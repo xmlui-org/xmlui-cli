@@ -3,7 +3,6 @@ package newcmd
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -56,15 +55,15 @@ const templatesJson = `{
 }`
 
 func HandleNewCmd(opts Options) {
-	var registry TemplateRegistry
-	if err := json.Unmarshal([]byte(templatesJson), &registry); err != nil {
-		log.Fatalf("Failed to parse templates registry: %v\nYour xmlui cli version is probably too old.", err)
+	templates, err := getTemplates()
+	if err != nil {
+		log.Fatalf("Error loading templates: %v", err)
 	}
 
 	var selectedTemplate *Template
-	for i := range registry.Templates {
-		if registry.Templates[i].UID == opts.TemplateName {
-			selectedTemplate = &registry.Templates[i]
+	for i := range templates {
+		if templates[i].UID == opts.TemplateName {
+			selectedTemplate = &templates[i]
 			break
 		}
 	}

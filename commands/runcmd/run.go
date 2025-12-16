@@ -21,11 +21,13 @@ type Options struct {
 
 func HandleRunCmd(opts Options) {
 
+	clientDir := opts.ClientDir
 	if strings.HasSuffix(strings.ToLower(opts.ClientDir), ".zip") {
-		handleZipArg(opts.ClientDir)
+		//todo: handle this error
+		clientDir, _ = handleZipArg(opts.ClientDir)
 	}
 	// Run a start script instead of the server if the directory has one
-	if startScriptPath, err := getStartScript(opts.ClientDir); err == nil {
+	if startScriptPath, err := getStartScript(clientDir); err == nil {
 		fmt.Printf("Executing found start script at: %s\n", startScriptPath)
 		cmd := exec.Command(startScriptPath)
 		cmd.Stdin = os.Stdin
@@ -43,7 +45,7 @@ func HandleRunCmd(opts Options) {
 	}
 
 	config := ServerConfig{
-		Dir:  opts.ClientDir,
+		Dir:  clientDir,
 		Port: opts.ServerPort,
 	}
 
