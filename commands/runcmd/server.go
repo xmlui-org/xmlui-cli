@@ -1,4 +1,4 @@
-package server
+package runcmd
 
 import (
 	"fmt"
@@ -50,14 +50,14 @@ var staticExtensions = map[string]bool{
 
 var logger = log.New(os.Stderr, "", 0)
 
-// Config holds the configuration for the server
-type Config struct {
+// ServerConfig holds the configuration for the server
+type ServerConfig struct {
 	Dir  string
 	Port string
 }
 
 // Start launches the SPA server
-func Start(cfg Config) error {
+func Start(cfg ServerConfig) error {
 	dir := cfg.Dir
 	if dir == "" {
 		wd, err := os.Getwd()

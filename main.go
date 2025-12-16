@@ -1,96 +1,17 @@
 package main
 
 import (
-	"archive/zip"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
-	"strconv"
-	"strings"
 
 	"xmlui-mcp/pkg/xmluimcp"
-	"xmlui/pkg/server"
+	"xmlui/commands/newcmd"
+	"xmlui/commands/runcmd"
 
 	"github.com/spf13/cobra"
 )
-
-func getStartScript(clientDir string) (startScriptPath string, err error) {
-	ensureRelative := func(p string) string {
-		if !filepath.IsAbs(p) && !strings.HasPrefix(p, "."+string(os.PathSeparator)) && !strings.HasPrefix(p, ".."+string(os.PathSeparator)) {
-			return "." + string(os.PathSeparator) + p
-		}
-		return p
-	}
-
-	if runtime.GOOS == "windows" {
-		powShellScript := filepath.Join(clientDir, "start.ps1")
-		if info, err := os.Stat(powShellScript); err == nil && !info.IsDir() {
-			return ensureRelative(powShellScript), nil
-		}
-
-		batchScript := filepath.Join(clientDir, "start.bat")
-		if info, err := os.Stat(batchScript); err == nil && !info.IsDir() {
-			return ensureRelative(batchScript), nil
-		}
-	} else {
-		shScript := filepath.Join(clientDir, "start.sh")
-		if info, err := os.Stat(shScript); err == nil && !info.IsDir() {
-			return ensureRelative(shScript), nil
-		}
-	}
-
-	return "", errors.New("no start script found")
-}
-
-func unzip(src, dest string) error {
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	for _, f := range r.File {
-		fpath := filepath.Join(dest, f.Name)
-
-		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return fmt.Errorf("%s: illegal file path", fpath)
-		}
-
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(fpath, os.ModePerm)
-			continue
-		}
-
-		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-			return err
-		}
-
-		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
-			return err
-		}
-
-		rc, err := f.Open()
-		if err != nil {
-			outFile.Close()
-			return err
-		}
-
-		_, err = io.Copy(outFile, rc)
-		outFile.Close()
-		rc.Close()
-
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
@@ -152,74 +73,44 @@ it will run that, instead of starting the server`,
 			clientDir = args[0]
 		}
 
-		if strings.HasSuffix(strings.ToLower(clientDir), ".zip") {
-			baseName := filepath.Base(clientDir)
-			ext := filepath.Ext(baseName)
-			dirName := baseName[:len(baseName)-len(ext)]
-			parentDir := filepath.Dir(clientDir)
-			targetDir := filepath.Join(parentDir, dirName)
+		runcmd.HandleRunCmd(runcmd.Options{ClientDir: clientDir, ServerPort: runPort})
+	},
+}
 
-			if _, err := os.Stat(targetDir); !os.IsNotExist(err) {
-				entries, err := os.ReadDir(parentDir)
-				if err != nil {
-					log.Fatalf("Failed to read directory %s: %v", parentDir, err)
-				}
+var newCmd = &cobra.Command{
+	Use:   "new [template]",
+	Short: "Creates a new project based on a template",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		templateOrSubcmdName := args[0]
 
-				maxNum := 0
-				prefix := dirName + "-"
-
-				for _, entry := range entries {
-					name := entry.Name()
-					if strings.HasPrefix(name, prefix) {
-						if num, err := strconv.Atoi(name[len(prefix):]); err == nil {
-							if num > maxNum {
-								maxNum = num
-							}
-						}
-					}
-				}
-				targetDir = filepath.Join(parentDir, fmt.Sprintf("%s-%d", dirName, maxNum+1))
+		subcmds := cmd.Commands()
+		for _, subcmd := range subcmds {
+			if subcmd.Name() == templateOrSubcmdName {
+				subcmd.Execute()
+				return
 			}
-
-			fmt.Printf("Extracting %s to %s...\n", clientDir, targetDir)
-			if err := unzip(clientDir, targetDir); err != nil {
-				log.Fatalf("Failed to extract zip file: %v", err)
-			}
-			clientDir = targetDir
 		}
 
-		// Run a start script instead of the server if the directory has one
-		if startScriptPath, err := getStartScript(clientDir); err == nil {
-			fmt.Printf("Executing found start script at: %s\n", startScriptPath)
-			cmd := exec.Command(startScriptPath)
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				var exitErr *exec.ExitError
-				if errors.As(err, &exitErr) {
-					os.Exit(exitErr.ExitCode())
-				}
-				fmt.Printf("Failed to execute start script: %v", err)
-				os.Exit(1)
-			}
-			return
-		}
+		newcmd.HandleNewCmd(newcmd.Options{
+			TemplateName: templateOrSubcmdName,
+			OutputDir:    newOutput,
+		})
+	},
+}
 
-		config := server.Config{
-			Dir:  clientDir,
-			Port: runPort,
-		}
-
-		if err := server.Start(config); err != nil {
-			log.Fatal(err)
-		}
+var newListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "Lists the available templates",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("Listing the commands... (or not. Just a test cmd)")
 	},
 }
 
 func init() {
 	setupMcpCmd()
 	setupRunCmd()
+	setupNewCmd()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
@@ -230,7 +121,15 @@ var (
 	mcpXMLUIVersion string
 
 	runPort string
+
+	newOutput string
 )
+
+func setupNewCmd() {
+	newCmd.Flags().StringVarP(&newOutput, "output", "o", "", "Output directory")
+	newCmd.AddCommand(newListCmd)
+	rootCmd.AddCommand(newCmd)
+}
 
 func setupMcpCmd() {
 	mcpCmd.Flags().StringSliceVarP(&mcpExampleDirs, "example", "e", []string{}, "`<path>` to example directory (option can be repeated)")
