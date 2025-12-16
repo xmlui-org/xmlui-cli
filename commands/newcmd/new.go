@@ -1,11 +1,12 @@
 package newcmd
 
 import (
+	"archive/zip"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
 
 	"xmlui/utils"
 )
@@ -38,20 +39,18 @@ func HandleNewCmd(opts Options) {
 		log.Fatalf("Failed to download template: %s", resp.Status)
 	}
 
-	tmpFile, err := os.CreateTemp("", "xmlui-template-*.zip")
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to create temp file: %v", err)
+		log.Fatalf("Failed to read downloaded template: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
 
-	_, err = io.Copy(tmpFile, resp.Body)
+	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
-		log.Fatalf("Failed to save template: %v", err)
+		log.Fatalf("Failed to read zip content: %v", err)
 	}
-	tmpFile.Close()
 
 	fmt.Printf("Extracting to %s...\n", outputDir)
-	if err := utils.Unzip(tmpFile.Name(), outputDir); err != nil {
+	if err := utils.Unzip(zipReader, outputDir); err != nil {
 		log.Fatalf("Failed to extract template: %v", err)
 	}
 

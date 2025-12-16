@@ -1,6 +1,7 @@
 package runcmd
 
 import (
+	"archive/zip"
 	"errors"
 	"fmt"
 	"log"
@@ -19,42 +20,10 @@ type Options struct {
 }
 
 func HandleRunCmd(opts Options) {
+
 	if strings.HasSuffix(strings.ToLower(opts.ClientDir), ".zip") {
-		baseName := filepath.Base(opts.ClientDir)
-		ext := filepath.Ext(baseName)
-		dirName := baseName[:len(baseName)-len(ext)]
-		parentDir := filepath.Dir(opts.ClientDir)
-		targetDir := filepath.Join(parentDir, dirName)
-
-		if _, err := os.Stat(targetDir); !os.IsNotExist(err) {
-			entries, err := os.ReadDir(parentDir)
-			if err != nil {
-				log.Fatalf("Failed to read directory %s: %v", parentDir, err)
-			}
-
-			maxNum := 0
-			prefix := dirName + "-"
-
-			for _, entry := range entries {
-				name := entry.Name()
-				if strings.HasPrefix(name, prefix) {
-					if num, err := strconv.Atoi(name[len(prefix):]); err == nil {
-						if num > maxNum {
-							maxNum = num
-						}
-					}
-				}
-			}
-			targetDir = filepath.Join(parentDir, fmt.Sprintf("%s-%d", dirName, maxNum+1))
-		}
-
-		fmt.Printf("Extracting %s to %s...\n", opts.ClientDir, targetDir)
-		if err := utils.Unzip(opts.ClientDir, targetDir); err != nil {
-			log.Fatalf("Failed to extract zip file: %v", err)
-		}
-		opts.ClientDir = targetDir
+		handleZipArg(opts.ClientDir)
 	}
-
 	// Run a start script instead of the server if the directory has one
 	if startScriptPath, err := getStartScript(opts.ClientDir); err == nil {
 		fmt.Printf("Executing found start script at: %s\n", startScriptPath)
@@ -109,4 +78,46 @@ func getStartScript(clientDir string) (startScriptPath string, err error) {
 	}
 
 	return "", errors.New("no start script found")
+}
+
+func handleZipArg(zipfile string) (extractedDir string, err error) {
+	baseName := filepath.Base(zipfile)
+	ext := filepath.Ext(baseName)
+	dirName := baseName[:len(baseName)-len(ext)]
+	parentDir := filepath.Dir(zipfile)
+	targetDir := filepath.Join(parentDir, dirName)
+
+	if _, err := os.Stat(targetDir); !os.IsNotExist(err) {
+		entries, err := os.ReadDir(parentDir)
+		if err != nil {
+			log.Fatalf("Failed to read directory %s: %v", parentDir, err)
+		}
+
+		maxNum := 0
+		prefix := dirName + "-"
+
+		for _, entry := range entries {
+			name := entry.Name()
+			if strings.HasPrefix(name, prefix) {
+				if num, err := strconv.Atoi(name[len(prefix):]); err == nil {
+					if num > maxNum {
+						maxNum = num
+					}
+				}
+			}
+		}
+		targetDir = filepath.Join(parentDir, fmt.Sprintf("%s-%d", dirName, maxNum+1))
+	}
+
+	fmt.Printf("Extracting %s to %s...\n", zipfile, targetDir)
+	r, err := zip.OpenReader(zipfile)
+	if err != nil {
+		log.Fatalf("Failed to open zip file: %v", err)
+	}
+	err = utils.Unzip(&r.Reader, targetDir)
+	r.Close()
+	if err != nil {
+		log.Fatalf("Failed to extract zip file: %v", err)
+	}
+	return targetDir, nil
 }

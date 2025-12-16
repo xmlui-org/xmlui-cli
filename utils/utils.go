@@ -9,16 +9,14 @@ import (
 	"strings"
 )
 
-func Unzip(src, dest string) error {
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
+// Unzip extracts a zip archive to the destination directory.
+// It takes a *zip.Reader which allows extracting from both files (via zip.NewReader)
+// and memory/streams (via bytes.NewReader + zip.NewReader).
+func Unzip(r *zip.Reader, dest string) error {
 	for _, f := range r.File {
 		fpath := filepath.Join(dest, f.Name)
 
+		// Check for Zip Slip vulnerability
 		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
 			return fmt.Errorf("%s: illegal file path", fpath)
 		}
@@ -28,7 +26,7 @@ func Unzip(src, dest string) error {
 			continue
 		}
 
-		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+		if err := os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 			return err
 		}
 
