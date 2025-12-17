@@ -2,9 +2,12 @@ package runcmd
 
 import (
 	"archive/zip"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -84,8 +87,40 @@ func handleZipArg(zipfile string, destDir string) (extractedDir string, err erro
 		targetDir = filepath.Join(destDir, fmt.Sprintf("%s-%d", dirName, maxNum+1))
 	}
 
+	localZipFile := zipfile
+	if strings.HasPrefix(zipfile, "https://") || strings.HasPrefix(zipfile, "http://") {
+		fmt.Printf("Downloading %s...\n", zipfile)
+		resp, err := http.Get(zipfile)
+		if err != nil {
+			return "", fmt.Errorf("failed to download zip file: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("failed to download zip file: status %d", resp.StatusCode)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalf("Failed to read content of querry response: %v", err)
+		}
+
+		zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+		if err != nil {
+			log.Fatalf("Failed to read zip content: %v", err)
+		}
+
+		fmt.Printf("Extracting %s to %s...\n", zipfile, targetDir)
+
+		err = utils.Unzip(zipReader, targetDir)
+		if err != nil {
+			return "", fmt.Errorf("Failed to extract zip file: %v", err)
+		}
+		return targetDir, nil
+	}
+
 	fmt.Printf("Extracting %s to %s...\n", zipfile, targetDir)
-	r, err := zip.OpenReader(zipfile)
+	r, err := zip.OpenReader(localZipFile)
 	if err != nil {
 		return "", fmt.Errorf("Failed to open zip file: %v", err)
 	}
