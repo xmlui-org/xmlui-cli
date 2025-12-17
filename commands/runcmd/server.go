@@ -72,6 +72,10 @@ func Start(cfg ServerConfig) error {
 		return fmt.Errorf("failed to resolve directory path: %w", err)
 	}
 
+	if _, err := os.Stat(absDir); os.IsNotExist(err) {
+		return fmt.Errorf("Directory does not exist: %s", dir)
+	}
+
 	// Determine port and listener
 	var listener net.Listener
 	port := cfg.Port
