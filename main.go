@@ -73,7 +73,7 @@ it will run that, instead of starting the server`,
 			clientDir = args[0]
 		}
 
-		runcmd.HandleRunCmd(runcmd.Options{ClientDir: clientDir, ServerPort: runPort})
+		runcmd.HandleRunCmd(runcmd.Options{RunTarget: clientDir, ServerPort: runPort})
 	},
 }
 
