@@ -28,32 +28,6 @@ type TemplateRegistry struct {
 	Templates []Template `json:"templates"`
 }
 
-const templatesJson = `{
-	"templates": [
-		{
-			"uid": "hello-world",
-			"displayName": "Hello World",
-			"author": "xmlui.org",
-			"description": "The simplest xmlui app to get you started.",
-			"zipArchive": "https://github.com/xmlui-org/xmlui-hello-world/releases/download/v1.0.2/xmlui-hello-world.zip"
-		},
-		{
-			"uid": "weather",
-			"displayName": "XMLUI Weather Dashboard",
-			"author": "xmlui.org",
-			"description": "A simple weather dashboard that displays current weather conditions for any city.",
-			"zipArchive": "https://github.com/xmlui-org/xmlui-weather/releases/download/v1.0.0/xmlui-weather.zip"
-		},
-		{
-			"uid": "invoice",
-			"displayName": "XMLUI Invoice",
-			"author": "xmlui.org",
-			"description": "A complete business application for invoice management with a local server and database",
-			"zipArchive": "https://github.com/xmlui-org/xmlui-invoice/releases/download/v1.0.1/xmlui-invoice.zip"
-		}
-	]
-}`
-
 func HandleNewCmd(opts Options) {
 	templates, err := getTemplates()
 	if err != nil {
@@ -81,12 +55,12 @@ func HandleNewCmd(opts Options) {
 	fmt.Printf("Downloading template %s...\n", selectedTemplate.DisplayName)
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatalf("Failed to download template: %v", err)
+		log.Fatalf("Failed to download template from %s\nError: %v", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Failed to download template: %s", resp.Status)
+		log.Fatalf("Failed to download template from %s\nError: %s", url, resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)

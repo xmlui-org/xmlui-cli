@@ -23,8 +23,12 @@ func HandleRunCmd(opts Options) {
 
 	clientDir := opts.ClientDir
 	if strings.HasSuffix(strings.ToLower(opts.ClientDir), ".zip") {
-		//todo: handle this error
-		clientDir, _ = handleZipArg(opts.ClientDir)
+		extractedDir, err := handleZipArg(opts.ClientDir)
+		if err != nil {
+			log.Fatal(err.Error())
+		} else {
+			clientDir = extractedDir
+		}
 	}
 	// Run a start script instead of the server if the directory has one
 	if startScriptPath, err := getStartScript(clientDir); err == nil {
@@ -92,7 +96,7 @@ func handleZipArg(zipfile string) (extractedDir string, err error) {
 	if _, err := os.Stat(targetDir); !os.IsNotExist(err) {
 		entries, err := os.ReadDir(parentDir)
 		if err != nil {
-			log.Fatalf("Failed to read directory %s: %v", parentDir, err)
+			return "", fmt.Errorf("Failed to read directory %s: %v", parentDir, err)
 		}
 
 		maxNum := 0
@@ -114,12 +118,12 @@ func handleZipArg(zipfile string) (extractedDir string, err error) {
 	fmt.Printf("Extracting %s to %s...\n", zipfile, targetDir)
 	r, err := zip.OpenReader(zipfile)
 	if err != nil {
-		log.Fatalf("Failed to open zip file: %v", err)
+		return "", fmt.Errorf("Failed to open zip file: %v", err)
 	}
 	err = utils.Unzip(&r.Reader, targetDir)
 	r.Close()
 	if err != nil {
-		log.Fatalf("Failed to extract zip file: %v", err)
+		return "", fmt.Errorf("Failed to extract zip file: %v", err)
 	}
 	return targetDir, nil
 }
