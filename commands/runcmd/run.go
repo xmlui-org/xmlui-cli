@@ -15,21 +15,21 @@ import (
 )
 
 type Options struct {
-	ClientDir  string
+	RunTarget  string
 	ServerPort string
 }
 
 func HandleRunCmd(opts Options) {
 
-	clientDir := opts.ClientDir
-	if strings.HasSuffix(strings.ToLower(opts.ClientDir), ".zip") {
+	clientDir := opts.RunTarget
+	if strings.HasSuffix(strings.ToLower(opts.RunTarget), ".zip") {
 
 		destDir, err := os.Getwd()
 		if err != nil {
 			log.Fatalf("Error while getting the current working directory needed to determine where to extract file: %s", err.Error())
 		}
 
-		extractedDir, err := handleZipArg(opts.ClientDir, destDir)
+		extractedDir, err := handleZipArg(opts.RunTarget, destDir)
 		if err != nil {
 			log.Fatal(err.Error())
 		} else {
