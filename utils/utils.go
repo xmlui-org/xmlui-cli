@@ -13,12 +13,62 @@ import (
 // It takes a *zip.Reader which allows extracting from both files (via zip.NewReader)
 // and memory/streams (via bytes.NewReader + zip.NewReader).
 func Unzip(r *zip.Reader, dest string) error {
+	if err := os.MkdirAll(dest, os.ModePerm); err != nil {
+		return fmt.Errorf("Error creating file %s", dest)
+	}
+
+	extractPrefix := ""
+	// Check if the zip has a single top-level directory
+	if len(r.File) > 0 {
+
+		first := r.File[0].Name
+		parts := strings.Split(first, "/")
+
+		candidate := parts[0]
+		allShareFirstPathPart := true
+		aTopLvlDirExists := false
+
+		for _, f := range r.File {
+			currentParts := strings.Split(f.Name, "/")
+
+			if currentParts[0] != candidate {
+				allShareFirstPathPart = false
+				break
+			}
+
+			// If we have "candidate/something" or the entry "candidate/" is explicitly a dir
+			if len(currentParts) > 1 || f.FileInfo().IsDir() {
+				aTopLvlDirExists = true
+			}
+		}
+
+		if allShareFirstPathPart && aTopLvlDirExists {
+			extractPrefix = candidate + "/"
+		}
+	}
 	for _, f := range r.File {
-		fpath := filepath.Join(dest, f.Name)
+		name := f.Name
+
+		if extractPrefix != "" {
+			if after, ok := strings.CutPrefix(name, extractPrefix); ok {
+				if after == "" {
+					continue
+				}
+				name = after
+			} else {
+				// Handle exact match with the directory name
+				// in case it doesn't have a trailing slash
+				// (e.g. "dir" matching prefix "dir/")
+				// We must either cut a prefix or skip the root dir, since we determined there's for sure a single root dir
+				continue
+			}
+		}
+
+		fpath := filepath.Join(dest, name)
 
 		// Check for Zip Slip vulnerability
 		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return fmt.Errorf("%s: illegal file path", fpath)
+			return fmt.Errorf("illegal file path: %s", fpath)
 		}
 
 		if f.FileInfo().IsDir() {

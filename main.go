@@ -126,7 +126,7 @@ var (
 )
 
 func setupNewCmd() {
-	newCmd.Flags().StringVarP(&newOutput, "output", "o", "", "Output directory")
+	newCmd.Flags().StringVarP(&newOutput, "output", "o", "", "`<path>` to output directory")
 	newCmd.AddCommand(newListCmd)
 	rootCmd.AddCommand(newCmd)
 }
