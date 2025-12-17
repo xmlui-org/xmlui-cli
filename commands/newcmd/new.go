@@ -52,15 +52,15 @@ func HandleNewCmd(opts Options) {
 		outputDir = selectedTemplate.UID
 	}
 
-	fmt.Printf("Downloading template %s...\n", selectedTemplate.DisplayName)
+	fmt.Printf("Downloading %s (%s)...\n", outputDir, selectedTemplate.DisplayName)
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatalf("Failed to download template from %s\nError: %v", url, err)
+		log.Fatalf("Failed to download from %s\nError: %v", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Failed to download template from %s\nError: %s", url, resp.Status)
+		log.Fatalf("Failed to download from %s\nError: %s", url, resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -75,7 +75,7 @@ func HandleNewCmd(opts Options) {
 
 	fmt.Printf("Extracting to %s...\n", outputDir)
 	if err := utils.Unzip(zipReader, outputDir); err != nil {
-		log.Fatalf("Failed to extract template: %v", err)
+		log.Fatalf("Failed to extract: %v", err)
 	} else {
       	fmt.Printf("To run the app, visit %s and use `xmlui run`\n", outputDir)
 	}

@@ -66,7 +66,7 @@ var runCmd = &cobra.Command{
 
 Examples:
 
-# Aquire and run from an URL
+# Acquire and run from an URL
 $ xmlui run https://github.com/xmlui-org/xmlui-hello-world/releases/latest/download/xmlui-hello-world.zip
 
 # Run the app in the current directory
@@ -85,6 +85,11 @@ $ xmlui run https://github.com/xmlui-org/xmlui-hello-world/releases/latest/downl
 var newCmd = &cobra.Command{
 	Use:   "new [app]",
 	Short: "Creates a new project based on an existing XMLUI app",
+	Long: `Creates a new project based on an existing XMLUI app found via "xmlui list"
+
+Example:
+
+$ xmlui new xmlui-weather`,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		newcmd.HandleNewCmd(newcmd.Options{
