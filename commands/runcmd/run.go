@@ -30,20 +30,12 @@ func HandleRunCmd(opts Options) {
 			clientDir = extractedDir
 		}
 	}
-	// Run a start script instead of the server if the directory has one
+
 	if startScriptPath, err := getStartScript(clientDir); err == nil {
 		fmt.Printf("Executing found start script at: %s\n", startScriptPath)
-		cmd := exec.Command(startScriptPath)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				os.Exit(exitErr.ExitCode())
-			}
-			fmt.Printf("Failed to execute start script: %v", err)
-			os.Exit(1)
+		err := execPassOwnership(startScriptPath)
+		if err != nil {
+			log.Fatalf("Error running start script: %s", err.Error())
 		}
 		return
 	}
@@ -126,4 +118,25 @@ func handleZipArg(zipfile string) (extractedDir string, err error) {
 		return "", fmt.Errorf("Failed to extract zip file: %v", err)
 	}
 	return targetDir, nil
+}
+
+// Runs a file which takes ownership of std-in,out,err.
+// Caller exits with the same exit code.
+//
+// Only returns errors when spawning the process fails.
+func execPassOwnership(path string) error {
+	cmd := exec.Command(path)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			os.Exit(exitErr.ExitCode())
+		} else {
+			return err
+		}
+	}
+	os.Exit(0)
+	return nil
 }
