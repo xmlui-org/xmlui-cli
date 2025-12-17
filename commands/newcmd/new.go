@@ -65,7 +65,7 @@ func HandleNewCmd(opts Options) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read downloaded template: %v", err)
+		// log.Fatalf("Failed to read downloaded template: %v", err)
 	}
 
 	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
@@ -76,5 +76,7 @@ func HandleNewCmd(opts Options) {
 	fmt.Printf("Extracting to %s...\n", outputDir)
 	if err := utils.Unzip(zipReader, outputDir); err != nil {
 		log.Fatalf("Failed to extract template: %v", err)
+	} else {
+      	fmt.Printf("To run the app, visit %s and use `xmlui run`\n", outputDir)
 	}
 }

@@ -21,7 +21,7 @@ func main() {
 
 var rootCmd = &cobra.Command{
 	Use:   "xmlui",
-	Short: "An all-in-one tool for working with xmlui.",
+	Short: "An all-in-one tool for working with XMLUI.",
 }
 
 var mcpCmd = &cobra.Command{
@@ -60,12 +60,17 @@ var mcpCmd = &cobra.Command{
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run [dir]",
-	Short: "Runs the XMLUI server",
-	Long: `Runs the XMLUI server at the current working directory, or at the directory specified by the first argument.
-If the first argument is a zip file, it will extract the contents next to it and run in that directory.
-If the directory contains a start.sh, start.ps1 or start.bat file,
-it will run that, instead of starting the server`,
+	Use:   "run [dir|url]",
+	Short: "Runs an XMLUI app",
+	Long: `Runs the XMLUI app in the current working directory, or acquire from an URL and run.
+
+Examples:
+
+# Aquire and run from an URL
+$ xmlui run https://github.com/xmlui-org/xmlui-hello-world/releases/latest/download/xmlui-hello-world.zip
+
+# Run the app in the current directory
+~/xmlui-weather$ xmlui run`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		clientDir := ""
@@ -78,37 +83,29 @@ it will run that, instead of starting the server`,
 }
 
 var newCmd = &cobra.Command{
-	Use:   "new [template]",
-	Short: "Creates a new project based on a template",
+	Use:   "new [app]",
+	Short: "Creates a new project based on an existing XMLUI app",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		templateOrSubcmdName := args[0]
-
-		subcmds := cmd.Commands()
-		for _, subcmd := range subcmds {
-			if subcmd.Name() == templateOrSubcmdName {
-				subcmd.Execute()
-				return
-			}
-		}
-
 		newcmd.HandleNewCmd(newcmd.Options{
-			TemplateName: templateOrSubcmdName,
+			TemplateName: args[0],
 			OutputDir:    newOutput,
 		})
 	},
 }
 
-var newListCmd = &cobra.Command{
+var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "Lists the available templates",
+	Short: "Lists the available apps",
 	Run: func(cmd *cobra.Command, args []string) {
 		newcmd.HandleNewListCmd()
 	},
 }
 
 func init() {
+    cobra.EnableCommandSorting = false
 	setupMcpCmd()
+	setupListCmd()
 	setupRunCmd()
 	setupNewCmd()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
@@ -125,9 +122,12 @@ var (
 	newOutput string
 )
 
+func setupListCmd() {
+	rootCmd.AddCommand(listCmd)
+}
+
 func setupNewCmd() {
 	newCmd.Flags().StringVarP(&newOutput, "output", "o", "", "`<path>` to output directory")
-	newCmd.AddCommand(newListCmd)
 	rootCmd.AddCommand(newCmd)
 }
 
