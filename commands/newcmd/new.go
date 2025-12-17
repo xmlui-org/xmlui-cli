@@ -65,7 +65,7 @@ func HandleNewCmd(opts Options) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		// log.Fatalf("Failed to read downloaded template: %v", err)
+		log.Fatalf("Failed to read downloaded app: %v", err)
 	}
 
 	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
