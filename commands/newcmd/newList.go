@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"text/tabwriter"
 	"time"
 )
 
@@ -16,12 +14,9 @@ func HandleNewListCmd() {
 		log.Fatalf("Error while querrying templates: %v", err)
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDISPLAY NAME")
 	for _, t := range templates {
-		fmt.Fprintf(w, "%s\t%s\n%s\n\n", t.UID, t.DisplayName, t.Description)
+		fmt.Printf("%s: %s\n\n", t.UID, t.Description)
 	}
-	w.Flush()
 }
 
 const templatesApiUrl = "https://xmlui.org/api/v1/templates/"

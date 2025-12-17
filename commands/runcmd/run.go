@@ -42,7 +42,7 @@ func HandleRunCmd(opts Options) {
 
 	if startScriptPath, err := getStartScript(clientDir); err == nil {
 		fmt.Printf("Executing found start script at: %s\n", startScriptPath)
-		err := execPassOwnership(startScriptPath)
+		err := execPassOwnership(startScriptPath, clientDir)
 		if err != nil {
 			log.Fatalf("Error running start script: %s", err.Error())
 		}
@@ -164,8 +164,9 @@ func getStartScript(clientDir string) (startScriptPath string, err error) {
 // Caller exits with the same exit code.
 //
 // Only returns errors when spawning the process fails.
-func execPassOwnership(path string) error {
+func execPassOwnership(path string, workingDir string) error {
 	cmd := exec.Command(path)
+	cmd.Dir = workingDir
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
