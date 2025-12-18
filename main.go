@@ -60,17 +60,18 @@ var mcpCmd = &cobra.Command{
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run [dir|url]",
+	Use:   "run [dir|zipfile|url]",
 	Short: "Runs an XMLUI app",
-	Long: `Runs the XMLUI app in the current working directory, or acquire from an URL and run.
-
-Examples:
-
-# Acquire and run from an URL
+	Example: `# Acquire and run from an URL
 $ xmlui run https://github.com/xmlui-org/xmlui-hello-world/releases/latest/download/xmlui-hello-world.zip
 
 # Run the app in the current directory
-~/xmlui-weather$ xmlui run`,
+~/xmlui-weather$ xmlui run
+
+# Unzip an existing file and run it
+$ xmlui run xmlui-hello-world.zip`,
+	Long: `Runs the XMLUI app in the current working directory or specified directory.
+Also extracts the specified local or remote zip file and runs that.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		clientDir := ""
@@ -83,14 +84,11 @@ $ xmlui run https://github.com/xmlui-org/xmlui-hello-world/releases/latest/downl
 }
 
 var newCmd = &cobra.Command{
-	Use:   "new [app]",
-	Short: "Creates a new project based on an existing XMLUI app",
-	Long: `Creates a new project based on an existing XMLUI app found via "xmlui list"
-
-Example:
-
-$ xmlui new xmlui-weather`,
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "new [app]",
+	Short:   "Creates a new project based on an existing XMLUI app",
+	Example: `$ xmlui new xmlui-weather`,
+	Long:    `Creates a new project based on an existing XMLUI app found via "xmlui list"`,
+	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		newcmd.HandleNewCmd(newcmd.Options{
 			TemplateName: args[0],
@@ -108,7 +106,7 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-    cobra.EnableCommandSorting = false
+	cobra.EnableCommandSorting = false
 	setupMcpCmd()
 	setupListCmd()
 	setupRunCmd()
