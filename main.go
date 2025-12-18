@@ -87,7 +87,7 @@ var newCmd = &cobra.Command{
 	Use:     "new [app]",
 	Short:   "Creates a new project based on an existing XMLUI app",
 	Example: `$ xmlui new xmlui-weather`,
-	Long:    `Creates a new project based on an existing XMLUI app found via "xmlui list"`,
+	Long:    `Creates a new project based on an existing XMLUI app found via "xmlui list-demos"`,
 	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		newcmd.HandleNewCmd(newcmd.Options{
@@ -97,10 +97,10 @@ var newCmd = &cobra.Command{
 	},
 }
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Lists the available apps",
-	Long: `Lists the available apps.
+var listDemosCmd = &cobra.Command{
+	Use:   "list-demos",
+	Short: "Lists the available demo apps",
+	Long: `Lists the available demo apps.
 Use one of the returned apps as the argument for the "xmlui new" command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		newcmd.HandleListCmd()
@@ -128,7 +128,7 @@ var (
 )
 
 func setupListCmd() {
-	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(listDemosCmd)
 }
 
 func setupNewCmd() {
