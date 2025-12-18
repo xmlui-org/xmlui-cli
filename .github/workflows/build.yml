@@ -103,15 +103,15 @@ jobs:
           body: |
             Extract the `xmlui` binary
 
-            Windows: `unzip xmlui-windows-amd64.zip`
+            - Windows: `unzip xmlui-windows-amd64.zip`
 
-            Linux: `tar -xzf xmlui-linux-amd.tar.gz`
+            - Linux: `tar -xzf xmlui-linux-amd.tar.gz`
 
-            Mac: `tar -xzf xmlui-macos-[arm64|intel].tar.gz`
+            - Mac: `tar -xzf xmlui-macos-[arm64|intel].tar.gz`
 
             Handle Mac quarantine:
 
-            `xattr -d com.apple.quarantine xmlui`
+            - `xattr -d com.apple.quarantine xmlui`
 
             Optional: Place `xmlui` on system path
 
