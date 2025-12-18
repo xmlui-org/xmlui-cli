@@ -152,9 +152,9 @@ func fileExists(path string) bool {
 }
 
 func getStartScript(clientDir string) (startScriptPath string, err error) {
-	ensureRelative := func(p string) string {
-		if !filepath.IsAbs(p) && !strings.HasPrefix(p, "."+string(os.PathSeparator)) && !strings.HasPrefix(p, ".."+string(os.PathSeparator)) {
-			return "." + string(os.PathSeparator) + p
+	ensureAbsolute := func(p string) string {
+		if abs, err := filepath.Abs(p); err == nil {
+			return abs
 		}
 		return p
 	}
@@ -162,17 +162,17 @@ func getStartScript(clientDir string) (startScriptPath string, err error) {
 	if runtime.GOOS == "windows" {
 		powShellScript := filepath.Join(clientDir, "start.ps1")
 		if info, err := os.Stat(powShellScript); err == nil && !info.IsDir() {
-			return ensureRelative(powShellScript), nil
+			return ensureAbsolute(powShellScript), nil
 		}
 
 		batchScript := filepath.Join(clientDir, "start.bat")
 		if info, err := os.Stat(batchScript); err == nil && !info.IsDir() {
-			return ensureRelative(batchScript), nil
+			return ensureAbsolute(batchScript), nil
 		}
 	} else {
 		shScript := filepath.Join(clientDir, "start.sh")
 		if info, err := os.Stat(shScript); err == nil && !info.IsDir() {
-			return ensureRelative(shScript), nil
+			return ensureAbsolute(shScript), nil
 		}
 	}
 
