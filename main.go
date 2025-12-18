@@ -100,6 +100,8 @@ var newCmd = &cobra.Command{
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Lists the available apps",
+	Long: `Lists the available apps.
+Use one of the returned apps as the argument for the "xmlui new" command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		newcmd.HandleListCmd()
 	},
