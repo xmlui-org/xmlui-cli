@@ -143,6 +143,6 @@ func setupMcpCmd() {
 }
 
 func setupRunCmd() {
-	runCmd.Flags().StringVarP(&runPort, "port", "p", "", "`<port>` to run the HTTP server on. Defaults to 8080 or to a random port when 8080 is taken. ")
+	runCmd.Flags().StringVarP(&runPort, "port", "p", "", "`<port>` to run the HTTP server on.\nDefaults to 8080 or to a random port when 8080 is taken. ")
 	rootCmd.AddCommand(runCmd)
 }

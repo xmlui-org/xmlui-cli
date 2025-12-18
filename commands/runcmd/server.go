@@ -101,8 +101,8 @@ func Start(cfg ServerConfig) error {
 	})
 
 	url := fmt.Sprintf("http://localhost:%s", actualPort)
-	utils.ConsoleLogger.Printf("Serving %s", absDir)
-	utils.ConsoleLogger.Printf("Available on: %s", url)
+	utils.ConsoleLogger.Printf("Serving %s\n", absDir)
+	utils.ConsoleLogger.Printf("Available on: %s\n", url)
 
 	// Open browser
 	go func() {
