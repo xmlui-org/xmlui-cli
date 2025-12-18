@@ -3,9 +3,7 @@ package newcmd
 import (
 	"archive/zip"
 	"bytes"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
 
 	"xmlui/utils"
@@ -31,7 +29,7 @@ type TemplateRegistry struct {
 func HandleNewCmd(opts Options) {
 	templates, err := getTemplates()
 	if err != nil {
-		log.Fatalf("Error loading templates: %v", err)
+		utils.ConsoleLogger.Fatalf("Error loading templates: %v", err)
 	}
 
 	var selectedTemplate *Template
@@ -43,7 +41,7 @@ func HandleNewCmd(opts Options) {
 	}
 
 	if selectedTemplate == nil {
-		log.Fatalf("Unknown template: %s.", opts.TemplateName)
+		utils.ConsoleLogger.Fatalf("Unknown template: %s.", opts.TemplateName)
 	}
 
 	url := selectedTemplate.ZipArchive
@@ -52,31 +50,31 @@ func HandleNewCmd(opts Options) {
 		outputDir = selectedTemplate.UID
 	}
 
-	fmt.Printf("Downloading %s (%s)...\n", outputDir, selectedTemplate.DisplayName)
+	utils.ConsoleLogger.Printf("Downloading %s (%s)...\n", outputDir, selectedTemplate.DisplayName)
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatalf("Failed to download from %s\nError: %v", url, err)
+		utils.ConsoleLogger.Fatalf("Failed to download from %s\nError: %v", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Failed to download from %s\nError: %s", url, resp.Status)
+		utils.ConsoleLogger.Fatalf("Failed to download from %s\nError: %s", url, resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read downloaded app: %v", err)
+		utils.ConsoleLogger.Fatalf("Failed to read downloaded app: %v", err)
 	}
 
 	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
-		log.Fatalf("Failed to read zip content: %v", err)
+		utils.ConsoleLogger.Fatalf("Failed to read zip content: %v", err)
 	}
 
-	fmt.Printf("Extracting to %s...\n", outputDir)
+	utils.ConsoleLogger.Printf("Extracting to %s...\n", outputDir)
 	if err := utils.Unzip(zipReader, outputDir); err != nil {
-		log.Fatalf("Failed to extract: %v", err)
+		utils.ConsoleLogger.Fatalf("Failed to extract: %v", err)
 	} else {
-      	fmt.Printf("To run the app, visit %s and use `xmlui run`\n", outputDir)
+		utils.ConsoleLogger.Printf("To run the app, visit %s and use `xmlui run`\n", outputDir)
 	}
 }

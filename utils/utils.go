@@ -9,6 +9,41 @@ import (
 	"strings"
 )
 
+// consoleLogger is a simple logger that writes to stderr without timestamps or prefixes.
+type consoleLogger struct{}
+
+var (
+	// ConsoleLogger is the global instance of consoleLogger for use throughout the application.
+	ConsoleLogger = &consoleLogger{}
+)
+
+// Printf formats and prints to stderr.
+func (l *consoleLogger) Printf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, format, args...)
+}
+
+// Println prints to stderr with a newline.
+func (l *consoleLogger) Println(args ...any) {
+	fmt.Fprintln(os.Stderr, args...)
+}
+
+// Print prints to stderr without a newline.
+func (l *consoleLogger) Print(args ...any) {
+	fmt.Fprint(os.Stderr, args...)
+}
+
+// Fatalf prints an error message to stderr and exits with status 1.
+func (l *consoleLogger) Fatalf(format string, args ...any) {
+	l.Printf(format, args...)
+	os.Exit(1)
+}
+
+// Fatal prints an error message to stderr and exits with status 1.
+func (l *consoleLogger) Fatal(args ...any) {
+	l.Println(args...)
+	os.Exit(1)
+}
+
 // Unzip extracts a zip archive to the destination directory.
 // It takes a *zip.Reader which allows extracting from both files (via zip.NewReader)
 // and memory/streams (via bytes.NewReader + zip.NewReader).

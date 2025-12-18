@@ -2,13 +2,12 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"log"
 	"os"
 
 	"xmlui-mcp/pkg/xmluimcp"
 	"xmlui/commands/newcmd"
 	"xmlui/commands/runcmd"
+	"xmlui/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -37,23 +36,23 @@ var mcpCmd = &cobra.Command{
 			XMLUIVersion: mcpXMLUIVersion,
 		}
 
-		fmt.Fprintf(os.Stderr, "Initializing MCP server...\n")
+		utils.ConsoleLogger.Printf("Initializing MCP server...\n")
 		server, err := xmluimcp.NewServer(config)
 		if err != nil {
 			if errors.Is(err, xmluimcp.ErrVersionNotFound) && mcpXMLUIVersion != "" {
-				fmt.Fprintf(os.Stderr, "\nError: The specified XMLUI version '%s' was not found.\nPlease check if it is a valid version.\n", mcpXMLUIVersion)
+				utils.ConsoleLogger.Printf("\nError: The specified XMLUI version '%s' was not found.\nPlease check if it is a valid version.\n", mcpXMLUIVersion)
 				os.Exit(1)
 			}
-			log.Fatalf("Failed to create XMLUI MCP server: %v", err)
+			utils.ConsoleLogger.Fatalf("Failed to create XMLUI MCP server: %v", err)
 		}
-		fmt.Fprintf(os.Stderr, "Inicialization Done!\n")
+		utils.ConsoleLogger.Printf("Initialization Done!\n")
 		if mcpHTTPMode {
 			if err := server.ServeHTTP(); err != nil {
-				log.Fatalf("Server error: %v", err)
+				utils.ConsoleLogger.Fatalf("Server error: %v", err)
 			}
 		} else {
 			if err := server.ServeStdio(); err != nil {
-				log.Fatalf("Stdio server error: %v", err)
+				utils.ConsoleLogger.Fatalf("Stdio server error: %v", err)
 			}
 		}
 	},
@@ -66,20 +65,21 @@ var runCmd = &cobra.Command{
 $ xmlui run https://github.com/xmlui-org/xmlui-hello-world/releases/latest/download/xmlui-hello-world.zip
 
 # Run the app in the current directory
-~/xmlui-weather$ xmlui run
+$ cd ~/xmlui-weather
+$ xmlui run
 
 # Unzip an existing file and run it
 $ xmlui run xmlui-hello-world.zip`,
 	Long: `Runs the XMLUI app in the current working directory or specified directory.
-Also extracts the specified local or remote zip file and runs that.`,
+If a local or remote zip file is specified, it will be extracted and run.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		clientDir := ""
+		runTarget := ""
 		if len(args) > 0 {
-			clientDir = args[0]
+			runTarget = args[0]
 		}
 
-		runcmd.HandleRunCmd(runcmd.Options{RunTarget: clientDir, ServerPort: runPort})
+		runcmd.HandleRunCmd(runcmd.Options{RunTarget: runTarget, ServerPort: runPort})
 	},
 }
 
@@ -101,7 +101,7 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Lists the available apps",
 	Run: func(cmd *cobra.Command, args []string) {
-		newcmd.HandleNewListCmd()
+		newcmd.HandleListCmd()
 	},
 }
 
@@ -136,13 +136,13 @@ func setupNewCmd() {
 
 func setupMcpCmd() {
 	mcpCmd.Flags().StringSliceVarP(&mcpExampleDirs, "example", "e", []string{}, "`<path>` to example directory (option can be repeated)")
-	mcpCmd.Flags().StringVarP(&mcpPort, "port", "p", "9090", "`<port>` to run the HTTP server on")
+	mcpCmd.Flags().StringVarP(&mcpPort, "port", "p", "9090", "`<port>` to run the HTTP server on (used only with http mode)")
 	mcpCmd.Flags().BoolVar(&mcpHTTPMode, "http", false, "Run as HTTP server")
 	mcpCmd.Flags().StringVar(&mcpXMLUIVersion, "xmlui-version", "", "Specific XMLUI `<version>` to use for documentation (e.g. 0.11.4)")
 	rootCmd.AddCommand(mcpCmd)
 }
 
 func setupRunCmd() {
-	runCmd.Flags().StringVarP(&runPort, "port", "p", "", "`<port>` to run the HTTP server on")
+	runCmd.Flags().StringVarP(&runPort, "port", "p", "", "`<port>` to run the HTTP server on. Defaults to 8080 or to a random port when 8080 is taken. ")
 	rootCmd.AddCommand(runCmd)
 }
