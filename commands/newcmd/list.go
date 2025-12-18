@@ -3,15 +3,15 @@ package newcmd
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
+	"xmlui/utils"
 )
 
 func HandleListCmd() {
 	templates, err := getTemplates()
 	if err != nil {
-		log.Fatalf("Error while querrying templates: %v", err)
+		utils.ConsoleLogger.Fatalf("Error while querrying templates: %v", err)
 	}
 
 	for _, t := range templates {

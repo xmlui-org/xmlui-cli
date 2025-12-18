@@ -2,7 +2,6 @@ package runcmd
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -11,44 +10,10 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"xmlui/utils"
 )
 
 const defaultPort = "8080"
-
-var staticExtensions = map[string]bool{
-	".xmlui": true,
-	".xs":    true,
-	".html":  true,
-	".js":    true,
-	".mjs":   true,
-	".css":   true,
-	".png":   true,
-	".jpg":   true,
-	".jpeg":  true,
-	".gif":   true,
-	".svg":   true,
-	".ico":   true,
-	".webp":  true,
-	".woff":  true,
-	".woff2": true,
-	".ttf":   true,
-	".eot":   true,
-	".otf":   true,
-	".json":  true,
-	".xml":   true,
-	".txt":   true,
-	".map":   true,
-	".mp4":   true,
-	".webm":  true,
-	".mp3":   true,
-	".wav":   true,
-	".pdf":   true,
-	".zip":   true,
-	".tar":   true,
-	".gz":    true,
-}
-
-var logger = log.New(os.Stderr, "", 0)
 
 // ServerConfig holds the configuration for the server
 type ServerConfig struct {
@@ -136,8 +101,8 @@ func Start(cfg ServerConfig) error {
 	})
 
 	url := fmt.Sprintf("http://localhost:%s", actualPort)
-	logger.Printf("Serving %s", absDir)
-	logger.Printf("Available on: %s", url)
+	utils.ConsoleLogger.Printf("Serving %s", absDir)
+	utils.ConsoleLogger.Printf("Available on: %s", url)
 
 	// Open browser
 	go func() {
@@ -165,6 +130,39 @@ func launchBrowser(url string) {
 	}
 
 	if err := exec.Command(cmd, args...).Start(); err != nil {
-		logger.Printf("Failed to open browser: %v", err)
+		utils.ConsoleLogger.Printf("Failed to open browser: %v", err)
 	}
+}
+
+var staticExtensions = map[string]bool{
+	".xmlui": true,
+	".xs":    true,
+	".html":  true,
+	".js":    true,
+	".mjs":   true,
+	".css":   true,
+	".png":   true,
+	".jpg":   true,
+	".jpeg":  true,
+	".gif":   true,
+	".svg":   true,
+	".ico":   true,
+	".webp":  true,
+	".woff":  true,
+	".woff2": true,
+	".ttf":   true,
+	".eot":   true,
+	".otf":   true,
+	".json":  true,
+	".xml":   true,
+	".txt":   true,
+	".map":   true,
+	".mp4":   true,
+	".webm":  true,
+	".mp3":   true,
+	".wav":   true,
+	".pdf":   true,
+	".zip":   true,
+	".tar":   true,
+	".gz":    true,
 }

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,22 +29,22 @@ func HandleRunCmd(opts Options) {
 
 		destDir, err := os.Getwd()
 		if err != nil {
-			log.Fatalf("Error while getting the current working directory needed to determine where to extract file: %s", err.Error())
+			utils.ConsoleLogger.Fatalf("Error while getting the current working directory needed to determine where to extract file: %s", err.Error())
 		}
 
 		extractedDir, err := handleZipArg(opts.RunTarget, destDir)
 		if err != nil {
-			log.Fatal(err.Error())
+			utils.ConsoleLogger.Fatal(err.Error())
 		} else {
 			clientDir = extractedDir
 		}
 	}
 
 	if startScriptPath, err := getStartScript(clientDir); err == nil {
-		fmt.Printf("Executing found start script at: %s\n", startScriptPath)
+		utils.ConsoleLogger.Printf("Executing found start script at: %s\n", startScriptPath)
 		err := execPassOwnership(startScriptPath, clientDir)
 		if err != nil {
-			log.Fatalf("Error running start script: %s", err.Error())
+			utils.ConsoleLogger.Fatalf("Error running start script: %s", err.Error())
 		}
 		return
 	}
@@ -56,7 +56,7 @@ func HandleRunCmd(opts Options) {
 		hasMainXMLUI := fileExists(filepath.Join(dir, "Main.xmlui"))
 
 		if !hasIndexHTML || !hasMainXMLUI {
-			log.Fatal("You are not in a directory with index.html and Main.xmlui, did you mean to be elsewhere?")
+			utils.ConsoleLogger.Fatal("You are not in a directory with index.html and Main.xmlui, did you mean to be elsewhere?")
 		}
 	}
 
@@ -66,7 +66,7 @@ func HandleRunCmd(opts Options) {
 	}
 
 	if err := Start(config); err != nil {
-		log.Fatal(err)
+		utils.ConsoleLogger.Fatal(err)
 	}
 }
 
@@ -100,7 +100,7 @@ func handleZipArg(zipfile string, destDir string) (extractedDir string, err erro
 
 	localZipFile := zipfile
 	if strings.HasPrefix(zipfile, "https://") || strings.HasPrefix(zipfile, "http://") {
-		fmt.Printf("Downloading %s...\n", zipfile)
+		utils.ConsoleLogger.Printf("Downloading %s...\n", zipfile)
 		resp, err := http.Get(zipfile)
 		if err != nil {
 			return "", fmt.Errorf("failed to download zip file: %v", err)
@@ -113,15 +113,15 @@ func handleZipArg(zipfile string, destDir string) (extractedDir string, err erro
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatalf("Failed to read content of querry response: %v", err)
+			utils.ConsoleLogger.Fatalf("Failed to read content of querry response: %v", err)
 		}
 
 		zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 		if err != nil {
-			log.Fatalf("Failed to read zip content: %v", err)
+			utils.ConsoleLogger.Fatalf("Failed to read zip content: %v", err)
 		}
 
-		fmt.Printf("Extracting %s to %s...\n", zipfile, targetDir)
+		utils.ConsoleLogger.Printf("Extracting %s to %s...\n", zipfile, targetDir)
 
 		err = utils.Unzip(zipReader, targetDir)
 		if err != nil {
@@ -130,7 +130,7 @@ func handleZipArg(zipfile string, destDir string) (extractedDir string, err erro
 		return targetDir, nil
 	}
 
-	fmt.Printf("Extracting %s to %s...\n", zipfile, targetDir)
+	utils.ConsoleLogger.Printf("Extracting %s to %s...\n", zipfile, targetDir)
 	r, err := zip.OpenReader(localZipFile)
 	if err != nil {
 		return "", fmt.Errorf("Failed to open zip file: %v", err)

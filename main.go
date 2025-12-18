@@ -2,13 +2,12 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"log"
 	"os"
 
 	"xmlui-mcp/pkg/xmluimcp"
 	"xmlui/commands/newcmd"
 	"xmlui/commands/runcmd"
+	"xmlui/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -37,23 +36,23 @@ var mcpCmd = &cobra.Command{
 			XMLUIVersion: mcpXMLUIVersion,
 		}
 
-		fmt.Fprintf(os.Stderr, "Initializing MCP server...\n")
+		utils.ConsoleLogger.Printf("Initializing MCP server...\n")
 		server, err := xmluimcp.NewServer(config)
 		if err != nil {
 			if errors.Is(err, xmluimcp.ErrVersionNotFound) && mcpXMLUIVersion != "" {
-				fmt.Fprintf(os.Stderr, "\nError: The specified XMLUI version '%s' was not found.\nPlease check if it is a valid version.\n", mcpXMLUIVersion)
+				utils.ConsoleLogger.Printf("\nError: The specified XMLUI version '%s' was not found.\nPlease check if it is a valid version.\n", mcpXMLUIVersion)
 				os.Exit(1)
 			}
-			log.Fatalf("Failed to create XMLUI MCP server: %v", err)
+			utils.ConsoleLogger.Fatalf("Failed to create XMLUI MCP server: %v", err)
 		}
-		fmt.Fprintf(os.Stderr, "Initialization Done!\n")
+		utils.ConsoleLogger.Printf("Initialization Done!\n")
 		if mcpHTTPMode {
 			if err := server.ServeHTTP(); err != nil {
-				log.Fatalf("Server error: %v", err)
+				utils.ConsoleLogger.Fatalf("Server error: %v", err)
 			}
 		} else {
 			if err := server.ServeStdio(); err != nil {
-				log.Fatalf("Stdio server error: %v", err)
+				utils.ConsoleLogger.Fatalf("Stdio server error: %v", err)
 			}
 		}
 	},
