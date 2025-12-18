@@ -29,7 +29,7 @@ type TemplateRegistry struct {
 func HandleNewCmd(opts Options) {
 	templates, err := getTemplates()
 	if err != nil {
-		utils.ConsoleLogger.Fatalf("Error loading templates: %v", err)
+		utils.ConsoleLogger.Fatalf("Error loading apps: %v", err)
 	}
 
 	var selectedTemplate *Template
@@ -41,7 +41,7 @@ func HandleNewCmd(opts Options) {
 	}
 
 	if selectedTemplate == nil {
-		utils.ConsoleLogger.Fatalf("Unknown template: %s.", opts.TemplateName)
+		utils.ConsoleLogger.Fatalf("Unknown app: %s.", opts.TemplateName)
 	}
 
 	url := selectedTemplate.ZipArchive

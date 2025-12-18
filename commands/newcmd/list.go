@@ -11,7 +11,7 @@ import (
 func HandleListCmd() {
 	templates, err := getTemplates()
 	if err != nil {
-		utils.ConsoleLogger.Fatalf("Error while querrying templates: %v", err)
+		utils.ConsoleLogger.Fatalf("Error while querrying apps: %v", err)
 	}
 
 	for _, t := range templates {
@@ -42,7 +42,7 @@ func getTemplates() ([]Template, error) {
 		}
 		return registry.Templates, nil
 	} else {
-		return nil, fmt.Errorf("Got a non Ok response status code while querrying templates: %v", resp.Status)
+		return nil, fmt.Errorf("Got a non Ok response status code while querrying apps: %v", resp.Status)
 	}
 
 }
