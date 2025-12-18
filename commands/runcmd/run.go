@@ -49,6 +49,17 @@ func HandleRunCmd(opts Options) {
 		return
 	}
 
+	// Check if index.html and Main.xmlui exist when no target is specified
+	if clientDir == "" {
+		dir := "."
+		hasIndexHTML := fileExists(filepath.Join(dir, "index.html"))
+		hasMainXMLUI := fileExists(filepath.Join(dir, "Main.xmlui"))
+
+		if !hasIndexHTML || !hasMainXMLUI {
+			log.Fatal("You are not in a directory with index.html and Main.xmlui, did you mean to be elsewhere?")
+		}
+	}
+
 	config := ServerConfig{
 		Dir:  clientDir,
 		Port: opts.ServerPort,
@@ -130,6 +141,14 @@ func handleZipArg(zipfile string, destDir string) (extractedDir string, err erro
 		return "", fmt.Errorf("Failed to extract zip file: %v", err)
 	}
 	return targetDir, nil
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
 }
 
 func getStartScript(clientDir string) (startScriptPath string, err error) {
