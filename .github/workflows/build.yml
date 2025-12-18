@@ -105,7 +105,7 @@ jobs:
 
             - Windows: `unzip xmlui-windows-amd64.zip`
 
-            - Linux: `tar -xzf xmlui-linux-amd.tar.gz`
+            - Linux: `tar -xzf xmlui-linux-amd64.tar.gz`
 
             - Mac: `tar -xzf xmlui-macos-[arm64|intel].tar.gz`
 
