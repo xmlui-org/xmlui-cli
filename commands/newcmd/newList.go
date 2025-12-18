@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func HandleNewListCmd() {
+func HandleListCmd() {
 	templates, err := getTemplates()
 	if err != nil {
 		log.Fatalf("Error while querrying templates: %v", err)
