@@ -3,8 +3,12 @@ package newcmd
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 
 	"xmlui/utils"
 )
@@ -46,11 +50,42 @@ func HandleNewCmd(opts Options) {
 
 	url := selectedTemplate.ZipArchive
 	outputDir := opts.OutputDir
-	if outputDir == "" {
+
+	if outputDir != "" {
+		if _, err := os.Stat(outputDir); !os.IsNotExist(err) {
+			utils.ConsoleLogger.Fatalf("Error: Specified output directory already exists: %s", outputDir)
+		}
+	} else {
 		outputDir = selectedTemplate.UID
+		if _, err := os.Stat(outputDir); !os.IsNotExist(err) {
+			destDir, err := os.Getwd()
+			if err != nil {
+				utils.ConsoleLogger.Fatalf("Failed to get current working directory: %v", err)
+			}
+
+			entries, err := os.ReadDir(destDir)
+			if err != nil {
+				utils.ConsoleLogger.Fatalf("Failed to read directory %s: %v", destDir, err)
+			}
+
+			maxNum := 0
+			prefix := outputDir + "-"
+
+			for _, entry := range entries {
+				name := entry.Name()
+				if strings.HasPrefix(name, prefix) {
+					if num, err := strconv.Atoi(name[len(prefix):]); err == nil {
+						if num > maxNum {
+							maxNum = num
+						}
+					}
+				}
+			}
+			outputDir = fmt.Sprintf("%s-%d", outputDir, maxNum+1)
+		}
 	}
 
-	utils.ConsoleLogger.Printf("Downloading %s (%s)...\n", outputDir, selectedTemplate.DisplayName)
+	utils.ConsoleLogger.Printf("Downloading %s (%s)...\n", selectedTemplate.UID, selectedTemplate.DisplayName)
 	resp, err := http.Get(url)
 	if err != nil {
 		utils.ConsoleLogger.Fatalf("Failed to download from %s\nError: %v", url, err)
