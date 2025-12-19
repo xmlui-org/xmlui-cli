@@ -76,7 +76,7 @@ func handleZipArg(zipfile string, destDir string) (extractedDir string, err erro
 	dirName := baseName[:len(baseName)-len(ext)]
 	targetDir := filepath.Join(destDir, dirName)
 
-	if _, err := os.Stat(targetDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(targetDir); os.IsExist(err) {
 		entries, err := os.ReadDir(destDir)
 		if err != nil {
 			return "", fmt.Errorf("Failed to read directory %s: %v", destDir, err)
