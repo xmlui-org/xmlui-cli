@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"os"
+	"runtime"
 
 	"xmlui-mcp/pkg/xmluimcp"
 	"xmlui/commands/newcmd"
@@ -13,9 +16,24 @@ import (
 )
 
 func main() {
+	// On Windows, if run without arguments (e.g., double-clicked), show help and wait
+	shouldPause := runtime.GOOS == "windows" && len(os.Args) == 1
+
 	if err := rootCmd.Execute(); err != nil {
+		if shouldPause {
+			pauseBeforeExit()
+		}
 		os.Exit(1)
 	}
+
+	if shouldPause {
+		pauseBeforeExit()
+	}
+}
+
+func pauseBeforeExit() {
+	fmt.Println("\nPress Enter to exit...")
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
 
 var rootCmd = &cobra.Command{
