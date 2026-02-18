@@ -62,7 +62,7 @@ jobs:
 
       - name: Clone xmlui-mcp dependency
         run: |
-          git clone --branch hajagosnorbert/demo https://github.com/xmlui-org/xmlui-mcp.git xmlui-mcp
+          git clone --branch main https://github.com/xmlui-org/xmlui-mcp.git xmlui-mcp
 
       - uses: actions/setup-go@v4
         with:
