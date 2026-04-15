@@ -15,6 +15,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// version is set via -ldflags at build time.
+var version = "dev"
+
 func main() {
 	// On Windows, if run without arguments (e.g., double-clicked), show help and wait
 	shouldPause := runtime.GOOS == "windows" && len(os.Args) == 1
@@ -37,8 +40,9 @@ func pauseBeforeExit() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "xmlui",
-	Short: "An all-in-one tool for working with XMLUI.",
+	Use:     "xmlui",
+	Short:   "An all-in-one tool for working with XMLUI.",
+	Version: version,
 }
 
 var mcpCmd = &cobra.Command{
@@ -52,6 +56,7 @@ var mcpCmd = &cobra.Command{
 			HTTPMode:     mcpHTTPMode,
 			Port:         mcpPort,
 			XMLUIVersion: mcpXMLUIVersion,
+			CLIVersion:   version,
 		}
 
 		utils.ConsoleLogger.Printf("Initializing MCP server...\n")

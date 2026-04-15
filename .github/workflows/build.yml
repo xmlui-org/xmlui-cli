@@ -88,7 +88,7 @@ jobs:
           CGO_ENABLED: 0
           CC: ${{ matrix.goos == 'windows' && 'x86_64-w64-mingw32-gcc' || 'gcc' }}
         run: |
-          go build -v -o ${{ matrix.out }}
+          go build -v -ldflags "-X main.version=${{ github.event.inputs.tag }}" -o ${{ matrix.out }}
           if [[ "${{ matrix.archive }}" == "zip" ]]; then
             zip xmlui-${{ matrix.label }}.${{ matrix.archive }} ${{ matrix.out }}
           else
@@ -114,4 +114,3 @@ jobs:
             - `xattr -d com.apple.quarantine xmlui`
 
             Optional: Place `xmlui` on system path
-
