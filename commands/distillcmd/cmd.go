@@ -14,7 +14,8 @@ import (
 
 // Options configure the distill-trace command.
 type Options struct {
-	Path string
+	Path    string
+	Summary bool
 }
 
 // HandleDistillCmd reads a trace JSON file and writes the distilled JSON to
@@ -41,6 +42,16 @@ func HandleDistillCmd(opts Options) {
 	}
 
 	out := DistillTrace(logs)
+	if opts.Summary {
+		summary := SummarizeDistillOutput(out)
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(summary); err != nil {
+			utils.ConsoleLogger.Fatalf("Error writing JSON: %v\n", err)
+		}
+		return
+	}
+
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(out); err != nil {

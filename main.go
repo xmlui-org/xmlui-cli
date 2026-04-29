@@ -162,10 +162,14 @@ var distillTraceCmd = &cobra.Command{
 	Use:   "distill-trace [path]",
 	Short: "Distills an XMLUI Inspector trace into per-step user-journey JSON",
 	Long: `Reads an exported XMLUI Inspector trace (JSON array of log events) and
-writes a per-step distillation to stdout. If no path is given, uses the most
-recent xs-trace-*.json found in ~/Downloads.`,
+writes a per-step distillation to stdout. By default it emits detailed JSON;
+pass --summary for a more compact analysis-oriented form. If no path is given,
+uses the most recent xs-trace-*.json found in ~/Downloads.`,
 	Example: `# Distill the most recent trace
 $ xmlui distill-trace
+
+# Distill a compact summary
+$ xmlui distill-trace --summary
 
 # Distill a specific trace
 $ xmlui distill-trace ~/Downloads/xs-trace-20260428T233834.json`,
@@ -175,7 +179,10 @@ $ xmlui distill-trace ~/Downloads/xs-trace-20260428T233834.json`,
 		if len(args) > 0 {
 			path = args[0]
 		}
-		distillcmd.HandleDistillCmd(distillcmd.Options{Path: path})
+		distillcmd.HandleDistillCmd(distillcmd.Options{
+			Path:    path,
+			Summary: distillTraceSummary,
+		})
 	},
 }
 
@@ -247,6 +254,8 @@ var (
 
 	installPrefix    string
 	installAddToPath bool
+
+	distillTraceSummary bool
 )
 
 func setupListCmd() {
@@ -272,6 +281,7 @@ func setupRunCmd() {
 }
 
 func setupDistillTraceCmd() {
+	distillTraceCmd.Flags().BoolVar(&distillTraceSummary, "summary", false, "Emit a compact summary JSON instead of the full detailed distillation")
 	rootCmd.AddCommand(distillTraceCmd)
 }
 

@@ -563,16 +563,61 @@ func summarizeResult(result interface{}) map[string]interface{} {
 		return nil
 	}
 	dateLike := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
-	scrubDates := func(obj map[string]interface{}) map[string]interface{} {
-		out := map[string]interface{}{}
-		for k, v := range obj {
-			if s, ok := v.(string); ok && dateLike.MatchString(s) {
-				out[k] = "__DATE__"
-			} else {
-				out[k] = v
+	var compactValue func(v interface{}, depth int) interface{}
+	compactValue = func(v interface{}, depth int) interface{} {
+		switch x := v.(type) {
+		case string:
+			if dateLike.MatchString(x) {
+				return "__DATE__"
 			}
+			return x
+		case []interface{}:
+			if len(x) == 0 {
+				return []interface{}{}
+			}
+			if depth <= 0 {
+				return map[string]interface{}{
+					"type":  "array",
+					"count": len(x),
+				}
+			}
+			allScalars := true
+			for _, item := range x {
+				switch item.(type) {
+				case map[string]interface{}, []interface{}:
+					allScalars = false
+				}
+				if !allScalars {
+					break
+				}
+			}
+			if allScalars && len(x) <= 5 {
+				out := make([]interface{}, 0, len(x))
+				for _, item := range x {
+					out = append(out, compactValue(item, depth-1))
+				}
+				return out
+			}
+			return map[string]interface{}{
+				"type":   "array",
+				"count":  len(x),
+				"sample": compactValue(x[0], depth-1),
+			}
+		case map[string]interface{}:
+			if depth <= 0 {
+				return map[string]interface{}{
+					"type": "object",
+					"keys": sortedKeys(x),
+				}
+			}
+			out := map[string]interface{}{}
+			for _, key := range sortedKeys(x) {
+				out[key] = compactValue(x[key], depth-1)
+			}
+			return out
+		default:
+			return x
 		}
-		return out
 	}
 
 	if arr, ok := result.([]interface{}); ok {
@@ -584,11 +629,12 @@ func summarizeResult(result interface{}) map[string]interface{} {
 			if !ok {
 				return nil
 			}
-			return map[string]interface{}{
+			out := map[string]interface{}{
 				"type":   "snapshot",
 				"keys":   sortedKeys(obj),
-				"values": scrubDates(obj),
+				"values": compactValue(obj, 3),
 			}
+			return out
 		}
 		first, _ := arr[0].(map[string]interface{})
 		return map[string]interface{}{
@@ -599,11 +645,12 @@ func summarizeResult(result interface{}) map[string]interface{} {
 	}
 
 	if obj, ok := result.(map[string]interface{}); ok {
-		return map[string]interface{}{
+		out := map[string]interface{}{
 			"type":   "snapshot",
 			"keys":   sortedKeys(obj),
-			"values": scrubDates(obj),
+			"values": compactValue(obj, 3),
 		}
+		return out
 	}
 
 	return nil
