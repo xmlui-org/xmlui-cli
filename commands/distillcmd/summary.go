@@ -156,9 +156,6 @@ func summarizeAPIResult(apiResult map[string]interface{}) map[string]interface{}
 	if apiResult == nil {
 		return nil
 	}
-	if summary, ok := apiResult["summary"].(map[string]interface{}); ok && len(summary) > 0 {
-		return summary
-	}
 	out := map[string]interface{}{}
 	for _, key := range []string{"type", "count", "keys", "values"} {
 		if v, ok := apiResult[key]; ok && v != nil {

@@ -634,9 +634,6 @@ func summarizeResult(result interface{}) map[string]interface{} {
 				"keys":   sortedKeys(obj),
 				"values": compactValue(obj, 3),
 			}
-			if summary := weatherSnapshotSummary(obj); summary != nil {
-				out["summary"] = summary
-			}
 			return out
 		}
 		first, _ := arr[0].(map[string]interface{})
@@ -653,65 +650,10 @@ func summarizeResult(result interface{}) map[string]interface{} {
 			"keys":   sortedKeys(obj),
 			"values": compactValue(obj, 3),
 		}
-		if summary := weatherSnapshotSummary(obj); summary != nil {
-			out["summary"] = summary
-		}
 		return out
 	}
 
 	return nil
-}
-
-func weatherSnapshotSummary(obj map[string]interface{}) map[string]interface{} {
-	current := firstObjectInArrayField(obj, "current_condition")
-	area := firstObjectInArrayField(obj, "nearest_area")
-	if current == nil || area == nil {
-		return nil
-	}
-	out := map[string]interface{}{
-		"type": "weather",
-	}
-	if location := firstValueField(area, "areaName"); location != "" {
-		out["location"] = location
-	}
-	if region := firstValueField(area, "region"); region != "" {
-		out["region"] = region
-	}
-	if country := firstValueField(area, "country"); country != "" {
-		out["country"] = country
-	}
-	if tempC, _ := current["temp_C"].(string); tempC != "" {
-		out["tempC"] = tempC
-	}
-	if tempF, _ := current["temp_F"].(string); tempF != "" {
-		out["tempF"] = tempF
-	}
-	if desc := firstValueField(current, "weatherDesc"); desc != "" {
-		out["condition"] = strings.TrimSpace(desc)
-	}
-	if days, ok := obj["weather"].([]interface{}); ok && len(days) > 0 {
-		out["forecastDays"] = len(days)
-	}
-	return out
-}
-
-func firstObjectInArrayField(obj map[string]interface{}, key string) map[string]interface{} {
-	arr, _ := obj[key].([]interface{})
-	if len(arr) == 0 {
-		return nil
-	}
-	first, _ := arr[0].(map[string]interface{})
-	return first
-}
-
-func firstValueField(obj map[string]interface{}, key string) string {
-	arr, _ := obj[key].([]interface{})
-	if len(arr) == 0 {
-		return ""
-	}
-	first, _ := arr[0].(map[string]interface{})
-	value, _ := first["value"].(string)
-	return value
 }
 
 func sortedKeys(m map[string]interface{}) []string {

@@ -34,7 +34,7 @@ func TestSummarizeResultCompactsNestedArrays(t *testing.T) {
 	}
 }
 
-func TestSummarizeResultAddsWeatherSummary(t *testing.T) {
+func TestSummarizeResultRemainsGeneric(t *testing.T) {
 	result := map[string]interface{}{
 		"current_condition": []interface{}{
 			map[string]interface{}{
@@ -59,18 +59,12 @@ func TestSummarizeResultAddsWeatherSummary(t *testing.T) {
 	}
 
 	got := summarizeResult(result)
-	summary, _ := got["summary"].(map[string]interface{})
-	if summary["type"] != "weather" {
-		t.Fatalf("summary.type = %v, want weather", summary["type"])
+	if _, ok := got["summary"]; ok {
+		t.Fatalf("summarizeResult should stay generic and not add domain-specific summary")
 	}
-	if summary["location"] != "Santa Rosa" {
-		t.Fatalf("summary.location = %v, want Santa Rosa", summary["location"])
-	}
-	if summary["condition"] != "Sunny" {
-		t.Fatalf("summary.condition = %v, want Sunny", summary["condition"])
-	}
-	if summary["forecastDays"] != 2 {
-		t.Fatalf("summary.forecastDays = %v, want 2", summary["forecastDays"])
+	values, _ := got["values"].(map[string]interface{})
+	if _, ok := values["weather"]; !ok {
+		t.Fatalf("expected compact generic values to retain weather key")
 	}
 }
 
@@ -85,10 +79,13 @@ func TestSummarizeDistillOutput(t *testing.T) {
 							"method":   "GET",
 							"endpoint": "https://wttr.in/Santa Rosa, CA",
 							"apiResult": map[string]interface{}{
-								"summary": map[string]interface{}{
-									"type":      "weather",
-									"location":  "Santa Rosa",
-									"condition": "Sunny",
+								"type": "snapshot",
+								"keys": []string{"current_condition", "weather"},
+								"values": map[string]interface{}{
+									"weather": map[string]interface{}{
+										"type":  "array",
+										"count": 3,
+									},
 								},
 							},
 						},
@@ -119,7 +116,9 @@ func TestSummarizeDistillOutput(t *testing.T) {
 	}
 	api, _ := got.Steps[0]["api"].([]map[string]interface{})
 	result, _ := api[0]["result"].(map[string]interface{})
-	if result["location"] != "Santa Rosa" {
-		t.Fatalf("summary api location = %v, want Santa Rosa", result["location"])
+	values, _ := result["values"].(map[string]interface{})
+	weather, _ := values["weather"].(map[string]interface{})
+	if weather["count"] != 3 {
+		t.Fatalf("summary api weather.count = %v, want 3", weather["count"])
 	}
 }
