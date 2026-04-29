@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"xmlui-mcp/pkg/xmluimcp"
+	"xmlui/commands/configurecmd"
 	"xmlui/commands/distillcmd"
 	"xmlui/commands/newcmd"
 	"xmlui/commands/runcmd"
@@ -151,12 +152,55 @@ $ xmlui distill-trace ~/Downloads/xs-trace-20260428T233834.json`,
 		distillcmd.HandleDistillCmd(distillcmd.Options{Path: path})
 	},
 }
+
+var doctorCmd = &cobra.Command{
+	Use:   "doctor",
+	Short: "Diagnoses xmlui MCP server registrations across known config locations",
+	Long: `Scans the user-scope and project-scope locations where an xmlui MCP server
+entry could be registered, validates each binary path, and runs --version
+against each binary. Use after 'configure-claude' to confirm the registration
+took, or when the agent doesn't see the xmlui tools.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		configurecmd.HandleDoctorCmd(configurecmd.DoctorOptions{})
+	},
+}
+
+var configureClaudeCmd = &cobra.Command{
+	Use:   "configure-claude",
+	Short: "Registers xmlui as an MCP server with Claude Code",
+	Long: `Registers (or updates) the xmlui MCP server in Claude Code's
+configuration so the agent can use the xmlui MCP tools.
+
+Scopes mirror 'claude mcp add --scope':
+  user    (default) — ~/.claude.json#mcpServers, available in every project
+  local             — ~/.claude.json#projects.<cwd>.mcpServers, this project only
+  project           — ./.mcp.json#mcpServers, committed in-repo`,
+	Example: `# Register at user scope (default)
+$ xmlui configure-claude
+
+# Register only for the current project
+$ xmlui configure-claude --scope local
+
+# Write to ./.mcp.json (committable)
+$ xmlui configure-claude --scope project
+
+# Unregister at the chosen scope
+$ xmlui configure-claude --remove`,
+	Run: func(cmd *cobra.Command, args []string) {
+		configurecmd.HandleConfigureClaudeCmd(configurecmd.ClaudeOptions{
+			Remove: configureClaudeRemove,
+			Scope:  configurecmd.Scope(configureClaudeScope),
+		})
+	},
+}
 func init() {
 	cobra.EnableCommandSorting = false
 	setupMcpCmd()
 	setupListCmd()
 	setupRunCmd()
 	setupNewCmd()
+	setupConfigureClaudeCmd()
+	setupDoctorCmd()
 	setupDistillTraceCmd()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
@@ -170,6 +214,9 @@ var (
 	runPort string
 
 	newOutput string
+
+	configureClaudeRemove bool
+	configureClaudeScope  string
 )
 
 func setupListCmd() {
@@ -196,4 +243,14 @@ func setupRunCmd() {
 
 func setupDistillTraceCmd() {
 	rootCmd.AddCommand(distillTraceCmd)
+}
+
+func setupDoctorCmd() {
+	rootCmd.AddCommand(doctorCmd)
+}
+
+func setupConfigureClaudeCmd() {
+	configureClaudeCmd.Flags().BoolVar(&configureClaudeRemove, "remove", false, "Unregister the xmlui MCP server")
+	configureClaudeCmd.Flags().StringVar(&configureClaudeScope, "scope", "user", "Configuration scope: user, local, or project")
+	rootCmd.AddCommand(configureClaudeCmd)
 }
