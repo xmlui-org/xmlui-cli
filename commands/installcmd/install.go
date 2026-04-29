@@ -83,8 +83,8 @@ func HandleInstallCmd(opts Options) {
 		}
 	}
 
-	utils.ConsoleLogger.Println("\nNext: register the MCP server with Claude Code:")
-	utils.ConsoleLogger.Println("  xmlui configure-claude")
+	utils.ConsoleLogger.Println("\nNext: register the MCP server with your client.")
+	utils.ConsoleLogger.Println("Run the appropriate configure-* command shown in 'xmlui --help'.")
 }
 
 // pickInstallDir prefers /usr/local/bin if it's writable (or doesn't exist
