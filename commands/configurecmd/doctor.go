@@ -59,7 +59,7 @@ func HandleDoctorCmd(_ DoctorOptions) {
 
 	switch len(regs) {
 	case 0:
-		utils.ConsoleLogger.Println("Summary: no xmlui MCP server registered. Run 'xmlui configure-claude'.")
+		utils.ConsoleLogger.Println("Summary: no xmlui MCP server registered. Run the appropriate configure-* command shown in 'xmlui --help'.")
 	case 1:
 		utils.ConsoleLogger.Println("Summary: 1 xmlui MCP server registration found.")
 	default:
