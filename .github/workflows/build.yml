@@ -103,10 +103,16 @@ jobs:
           body: |
             ## Install
 
-            One-liner (verifies SHA256, drops the binary on PATH):
+            macOS / Linux (verifies SHA256, installs on PATH):
 
             ```bash
-            curl -fsSL https://github.com/xmlui-org/xmlui-cli/releases/latest/download/install.sh | sh
+            curl -fsSL https://github.com/xmlui-org/xmlui-cli/releases/download/${{ github.event.inputs.tag }}/install.sh | sh
+            ```
+
+            Windows PowerShell (verifies SHA256, installs on PATH):
+
+            ```powershell
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://github.com/xmlui-org/xmlui-cli/releases/download/${{ github.event.inputs.tag }}/install.ps1 | iex"
             ```
 
             ## Manual install (audit-friendly)
@@ -124,6 +130,12 @@ jobs:
 
             ```bash
             xattr -d com.apple.quarantine xmlui
+            ```
+
+            On Windows, use `Expand-Archive` on `xmlui-windows-amd64.zip`, then run:
+
+            ```powershell
+            .\xmlui.exe install --add-to-path
             ```
 
   publish-checksums:
@@ -150,15 +162,17 @@ jobs:
         with:
           path: repo
 
-      - name: Append install.sh hash to SHA256SUMS
+      - name: Append installer script hashes to SHA256SUMS
         run: |
           shasum -a 256 repo/install.sh | sed 's| repo/| |' >> artifacts/SHA256SUMS
+          shasum -a 256 repo/install.ps1 | sed 's| repo/| |' >> artifacts/SHA256SUMS
           cat artifacts/SHA256SUMS
 
-      - name: Upload SHA256SUMS and install.sh to release
+      - name: Upload SHA256SUMS and installer scripts to release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/SHA256SUMS
             repo/install.sh
+            repo/install.ps1
           tag_name: ${{ github.event.inputs.tag }}

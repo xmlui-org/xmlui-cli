@@ -65,20 +65,36 @@ func HandleInstallCmd(opts Options) {
 
 	onPath := isOnPath(installDir)
 	if !onPath {
-		shellRC, line := pathExportLine(installDir)
-		if opts.AddToPath && shellRC != "" {
-			if appendIfMissing(shellRC, line) {
-				utils.ConsoleLogger.Printf("Added %s to PATH via %s.\n", installDir, shellRC)
-				utils.ConsoleLogger.Println("Open a new terminal tab for the change to take effect.")
+		if runtime.GOOS == "windows" {
+			if opts.AddToPath {
+				if err := appendWindowsUserPath(installDir); err == nil {
+					utils.ConsoleLogger.Printf("Ensured %s is on your user PATH.\n", installDir)
+					utils.ConsoleLogger.Println("Open a new PowerShell or Command Prompt window for the change to take effect.")
+				} else {
+					utils.ConsoleLogger.Printf("Could not update your user PATH automatically: %v\n", err)
+					utils.ConsoleLogger.Printf("Add %s to your user PATH manually.\n", installDir)
+				}
+			} else {
+				utils.ConsoleLogger.Printf("\n%s is not on your PATH.\n", installDir)
+				utils.ConsoleLogger.Printf("Add %s to your user PATH manually,\n", installDir)
+				utils.ConsoleLogger.Println("or re-run with --add-to-path to do it automatically.")
 			}
 		} else {
-			utils.ConsoleLogger.Printf("\n%s is not on your PATH.\n", installDir)
-			if shellRC != "" {
-				utils.ConsoleLogger.Printf("Add this line to %s and start a new shell:\n", shellRC)
-				utils.ConsoleLogger.Printf("  %s\n", line)
-				utils.ConsoleLogger.Println("\nOr re-run with --add-to-path to do it automatically.")
+			shellRC, line := pathExportLine(installDir)
+			if opts.AddToPath && shellRC != "" {
+				if appendIfMissing(shellRC, line) {
+					utils.ConsoleLogger.Printf("Added %s to PATH via %s.\n", installDir, shellRC)
+					utils.ConsoleLogger.Println("Open a new terminal tab for the change to take effect.")
+				}
 			} else {
-				utils.ConsoleLogger.Printf("Add %s to your PATH manually.\n", installDir)
+				utils.ConsoleLogger.Printf("\n%s is not on your PATH.\n", installDir)
+				if shellRC != "" {
+					utils.ConsoleLogger.Printf("Add this line to %s and start a new shell:\n", shellRC)
+					utils.ConsoleLogger.Printf("  %s\n", line)
+					utils.ConsoleLogger.Println("\nOr re-run with --add-to-path to do it automatically.")
+				} else {
+					utils.ConsoleLogger.Printf("Add %s to your PATH manually.\n", installDir)
+				}
 			}
 		}
 	}
@@ -181,6 +197,20 @@ func appendIfMissing(path, line string) bool {
 	defer f.Close()
 	fmt.Fprintf(f, "\n# Added by xmlui install\n%s\n", line)
 	return true
+}
+
+func appendWindowsUserPath(dir string) error {
+	script := fmt.Sprintf(
+		`$dir = %q; `+
+			`$current = [Environment]::GetEnvironmentVariable('Path', 'User'); `+
+			`$parts = @(); `+
+			`if ($current) { $parts = $current -split ';' | Where-Object { $_ } } `+
+			`if ($parts -notcontains $dir) { `+
+			`$newValue = if ($current -and $current.TrimEnd(';')) { $current.TrimEnd(';') + ';' + $dir } else { $dir }; `+
+			`[Environment]::SetEnvironmentVariable('Path', $newValue, 'User') }`,
+		dir,
+	)
+	return exec.Command("powershell", "-NoProfile", "-Command", script).Run()
 }
 
 func copyFile(src, dst string) error {

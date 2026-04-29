@@ -141,7 +141,8 @@ becomes available in any shell. Picks /usr/local/bin if writable, else
 ~/.local/bin (or ~/bin on Windows). Use --prefix to override.
 
 If the install directory is not on PATH, prints the line to add to your
-shell rc; pass --add-to-path to append it automatically.`,
+shell rc; pass --add-to-path to append it automatically. On Windows,
+--add-to-path updates the user PATH.`,
 	Example: `# Default install
 $ xmlui install
 
@@ -287,6 +288,6 @@ func setupConfigureClaudeCmd() {
 
 func setupInstallCmd() {
 	installCmd.Flags().StringVar(&installPrefix, "prefix", "", "`<dir>` to install into (default: /usr/local/bin if writable, else ~/.local/bin)")
-	installCmd.Flags().BoolVar(&installAddToPath, "add-to-path", false, "Append a PATH export to the user's shell rc if needed")
+	installCmd.Flags().BoolVar(&installAddToPath, "add-to-path", false, "Update PATH automatically if needed (shell rc on Unix, user PATH on Windows)")
 	rootCmd.AddCommand(installCmd)
 }

@@ -50,6 +50,7 @@ echo "[3/3] Generating SHA256SUMS…"
   {
     printf "%s  %s\n" "$(sha256_of "${ARTIFACT}")" "${ARTIFACT}"
     printf "%s  install.sh\n" "$(sha256_of "${REPO_ROOT}/install.sh")"
+    printf "%s  install.ps1\n" "$(sha256_of "${REPO_ROOT}/install.ps1")"
   } > SHA256SUMS
 )
 
