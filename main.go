@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"xmlui-mcp/pkg/xmluimcp"
+	"xmlui/commands/distillcmd"
 	"xmlui/commands/newcmd"
 	"xmlui/commands/runcmd"
 	"xmlui/utils"
@@ -130,12 +131,33 @@ Use one of the returned apps as the argument for the "xmlui new" command.`,
 	},
 }
 
+var distillTraceCmd = &cobra.Command{
+	Use:   "distill-trace [path]",
+	Short: "Distills an XMLUI Inspector trace into per-step user-journey JSON",
+	Long: `Reads an exported XMLUI Inspector trace (JSON array of log events) and
+writes a per-step distillation to stdout. If no path is given, uses the most
+recent xs-trace-*.json found in ~/Downloads.`,
+	Example: `# Distill the most recent trace
+$ xmlui distill-trace
+
+# Distill a specific trace
+$ xmlui distill-trace ~/Downloads/xs-trace-20260428T233834.json`,
+	Args: cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		path := ""
+		if len(args) > 0 {
+			path = args[0]
+		}
+		distillcmd.HandleDistillCmd(distillcmd.Options{Path: path})
+	},
+}
 func init() {
 	cobra.EnableCommandSorting = false
 	setupMcpCmd()
 	setupListCmd()
 	setupRunCmd()
 	setupNewCmd()
+	setupDistillTraceCmd()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
@@ -170,4 +192,8 @@ func setupMcpCmd() {
 func setupRunCmd() {
 	runCmd.Flags().StringVarP(&runPort, "port", "p", "", "`<port>` to run the HTTP server on.\nDefaults to 8080 or to a random port when 8080 is taken. ")
 	rootCmd.AddCommand(runCmd)
+}
+
+func setupDistillTraceCmd() {
+	rootCmd.AddCommand(distillTraceCmd)
 }
