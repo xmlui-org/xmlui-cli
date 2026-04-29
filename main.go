@@ -8,6 +8,9 @@ import (
 	"runtime"
 
 	"xmlui-mcp/pkg/xmluimcp"
+	"xmlui/commands/configurecmd"
+	"xmlui/commands/distillcmd"
+	"xmlui/commands/installcmd"
 	"xmlui/commands/newcmd"
 	"xmlui/commands/runcmd"
 	"xmlui/utils"
@@ -130,12 +133,102 @@ Use one of the returned apps as the argument for the "xmlui new" command.`,
 	},
 }
 
+var installCmd = &cobra.Command{
+	Use:   "install",
+	Short: "Copies the xmlui binary into a directory on PATH",
+	Long: `Copies the running xmlui binary into a directory on PATH so 'xmlui'
+becomes available in any shell. Picks /usr/local/bin if writable, else
+~/.local/bin (or ~/bin on Windows). Use --prefix to override.
+
+If the install directory is not on PATH, prints the line to add to your
+shell rc; pass --add-to-path to append it automatically.`,
+	Example: `# Default install
+$ xmlui install
+
+# Install to a specific directory
+$ xmlui install --prefix ~/.local/bin
+
+# Auto-add the install dir to your shell rc
+$ xmlui install --add-to-path`,
+	Run: func(cmd *cobra.Command, args []string) {
+		installcmd.HandleInstallCmd(installcmd.Options{
+			Prefix:    installPrefix,
+			AddToPath: installAddToPath,
+		})
+	},
+}
+
+var distillTraceCmd = &cobra.Command{
+	Use:   "distill-trace [path]",
+	Short: "Distills an XMLUI Inspector trace into per-step user-journey JSON",
+	Long: `Reads an exported XMLUI Inspector trace (JSON array of log events) and
+writes a per-step distillation to stdout. If no path is given, uses the most
+recent xs-trace-*.json found in ~/Downloads.`,
+	Example: `# Distill the most recent trace
+$ xmlui distill-trace
+
+# Distill a specific trace
+$ xmlui distill-trace ~/Downloads/xs-trace-20260428T233834.json`,
+	Args: cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		path := ""
+		if len(args) > 0 {
+			path = args[0]
+		}
+		distillcmd.HandleDistillCmd(distillcmd.Options{Path: path})
+	},
+}
+
+var doctorCmd = &cobra.Command{
+	Use:   "doctor",
+	Short: "Diagnoses xmlui MCP server registrations across known config locations",
+	Long: `Scans the user-scope and project-scope locations where an xmlui MCP server
+entry could be registered, validates each binary path, and runs --version
+against each binary. Use after 'configure-claude' to confirm the registration
+took, or when the agent doesn't see the xmlui tools.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		configurecmd.HandleDoctorCmd(configurecmd.DoctorOptions{})
+	},
+}
+
+var configureClaudeCmd = &cobra.Command{
+	Use:   "configure-claude",
+	Short: "Registers xmlui as an MCP server with Claude Code",
+	Long: `Registers (or updates) the xmlui MCP server in Claude Code's
+configuration so the agent can use the xmlui MCP tools.
+
+Scopes mirror 'claude mcp add --scope':
+  user    (default) — ~/.claude.json#mcpServers, available in every project
+  local             — ~/.claude.json#projects.<cwd>.mcpServers, this project only
+  project           — ./.mcp.json#mcpServers, committed in-repo`,
+	Example: `# Register at user scope (default)
+$ xmlui configure-claude
+
+# Register only for the current project
+$ xmlui configure-claude --scope local
+
+# Write to ./.mcp.json (committable)
+$ xmlui configure-claude --scope project
+
+# Unregister at the chosen scope
+$ xmlui configure-claude --remove`,
+	Run: func(cmd *cobra.Command, args []string) {
+		configurecmd.HandleConfigureClaudeCmd(configurecmd.ClaudeOptions{
+			Remove: configureClaudeRemove,
+			Scope:  configurecmd.Scope(configureClaudeScope),
+		})
+	},
+}
 func init() {
 	cobra.EnableCommandSorting = false
 	setupMcpCmd()
 	setupListCmd()
 	setupRunCmd()
 	setupNewCmd()
+	setupConfigureClaudeCmd()
+	setupDoctorCmd()
+	setupDistillTraceCmd()
+	setupInstallCmd()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
@@ -148,6 +241,12 @@ var (
 	runPort string
 
 	newOutput string
+
+	configureClaudeRemove bool
+	configureClaudeScope  string
+
+	installPrefix    string
+	installAddToPath bool
 )
 
 func setupListCmd() {
@@ -170,4 +269,24 @@ func setupMcpCmd() {
 func setupRunCmd() {
 	runCmd.Flags().StringVarP(&runPort, "port", "p", "", "`<port>` to run the HTTP server on.\nDefaults to 8080 or to a random port when 8080 is taken. ")
 	rootCmd.AddCommand(runCmd)
+}
+
+func setupDistillTraceCmd() {
+	rootCmd.AddCommand(distillTraceCmd)
+}
+
+func setupDoctorCmd() {
+	rootCmd.AddCommand(doctorCmd)
+}
+
+func setupConfigureClaudeCmd() {
+	configureClaudeCmd.Flags().BoolVar(&configureClaudeRemove, "remove", false, "Unregister the xmlui MCP server")
+	configureClaudeCmd.Flags().StringVar(&configureClaudeScope, "scope", "user", "Configuration scope: user, local, or project")
+	rootCmd.AddCommand(configureClaudeCmd)
+}
+
+func setupInstallCmd() {
+	installCmd.Flags().StringVar(&installPrefix, "prefix", "", "`<dir>` to install into (default: /usr/local/bin if writable, else ~/.local/bin)")
+	installCmd.Flags().BoolVar(&installAddToPath, "add-to-path", false, "Append a PATH export to the user's shell rc if needed")
+	rootCmd.AddCommand(installCmd)
 }

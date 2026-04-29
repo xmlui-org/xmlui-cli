@@ -32,7 +32,7 @@ jobs:
             ext: ""
             archive: tar.gz
             out: xmlui
-            label: linux-x64
+            label: linux-amd64
           - os: macos-latest
             goos: darwin
             goarch: arm64
@@ -53,7 +53,7 @@ jobs:
             ext: .exe
             archive: zip
             out: xmlui.exe
-            label: win-x64
+            label: windows-amd64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -101,16 +101,64 @@ jobs:
           files: xmlui-cli/xmlui-${{ matrix.label }}.${{ matrix.archive }}
           tag_name: ${{ github.event.inputs.tag }}
           body: |
-            Extract the `xmlui` binary
+            ## Install
 
-            - Windows: `unzip xmlui-win-x64.zip`
+            One-liner (verifies SHA256, drops the binary on PATH):
 
-            - Linux: `tar -xzf xmlui-linux-x64.tar.gz`
+            ```bash
+            curl -fsSL https://github.com/xmlui-org/xmlui-cli/releases/latest/download/install.sh | sh
+            ```
 
-            - Mac: `tar -xzf xmlui-macos-[arm64|intel].tar.gz`
+            ## Manual install (audit-friendly)
 
-            Handle Mac quarantine:
+            ```bash
+            # Download artifact + checksums
+            curl -fsSLO https://github.com/xmlui-org/xmlui-cli/releases/${{ github.event.inputs.tag }}/download/SHA256SUMS
+            curl -fsSLO https://github.com/xmlui-org/xmlui-cli/releases/${{ github.event.inputs.tag }}/download/xmlui-macos-arm64.tar.gz   # or your platform
+            shasum -a 256 -c SHA256SUMS --ignore-missing
+            tar -xzf xmlui-*.tar.gz
+            ./xmlui install
+            ```
 
-            - `xattr -d com.apple.quarantine xmlui`
+            On macOS, if installing from a browser download instead of curl, also run:
 
-            Optional: Place `xmlui` on system path
+            ```bash
+            xattr -d com.apple.quarantine xmlui
+            ```
+
+  publish-checksums:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all release artifacts
+        run: |
+          mkdir artifacts
+          cd artifacts
+          for asset in xmlui-linux-amd64.tar.gz xmlui-macos-arm64.tar.gz xmlui-macos-intel.tar.gz xmlui-windows-amd64.zip; do
+            curl -fsSL -o "${asset}" \
+              "https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag }}/${asset}"
+          done
+
+      - name: Generate SHA256SUMS
+        working-directory: artifacts
+        run: |
+          shasum -a 256 *.tar.gz *.zip > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Checkout repository (for install.sh)
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: Append install.sh hash to SHA256SUMS
+        run: |
+          shasum -a 256 repo/install.sh | sed 's| repo/| |' >> artifacts/SHA256SUMS
+          cat artifacts/SHA256SUMS
+
+      - name: Upload SHA256SUMS and install.sh to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/SHA256SUMS
+            repo/install.sh
+          tag_name: ${{ github.event.inputs.tag }}
