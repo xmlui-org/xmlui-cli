@@ -10,6 +10,7 @@ import (
 	"xmlui-mcp/pkg/xmluimcp"
 	"xmlui/commands/configurecmd"
 	"xmlui/commands/distillcmd"
+	"xmlui/commands/installcmd"
 	"xmlui/commands/newcmd"
 	"xmlui/commands/runcmd"
 	"xmlui/utils"
@@ -132,6 +133,31 @@ Use one of the returned apps as the argument for the "xmlui new" command.`,
 	},
 }
 
+var installCmd = &cobra.Command{
+	Use:   "install",
+	Short: "Copies the xmlui binary into a directory on PATH",
+	Long: `Copies the running xmlui binary into a directory on PATH so 'xmlui'
+becomes available in any shell. Picks /usr/local/bin if writable, else
+~/.local/bin (or ~/bin on Windows). Use --prefix to override.
+
+If the install directory is not on PATH, prints the line to add to your
+shell rc; pass --add-to-path to append it automatically.`,
+	Example: `# Default install
+$ xmlui install
+
+# Install to a specific directory
+$ xmlui install --prefix ~/.local/bin
+
+# Auto-add the install dir to your shell rc
+$ xmlui install --add-to-path`,
+	Run: func(cmd *cobra.Command, args []string) {
+		installcmd.HandleInstallCmd(installcmd.Options{
+			Prefix:    installPrefix,
+			AddToPath: installAddToPath,
+		})
+	},
+}
+
 var distillTraceCmd = &cobra.Command{
 	Use:   "distill-trace [path]",
 	Short: "Distills an XMLUI Inspector trace into per-step user-journey JSON",
@@ -202,6 +228,7 @@ func init() {
 	setupConfigureClaudeCmd()
 	setupDoctorCmd()
 	setupDistillTraceCmd()
+	setupInstallCmd()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
@@ -217,6 +244,9 @@ var (
 
 	configureClaudeRemove bool
 	configureClaudeScope  string
+
+	installPrefix    string
+	installAddToPath bool
 )
 
 func setupListCmd() {
@@ -253,4 +283,10 @@ func setupConfigureClaudeCmd() {
 	configureClaudeCmd.Flags().BoolVar(&configureClaudeRemove, "remove", false, "Unregister the xmlui MCP server")
 	configureClaudeCmd.Flags().StringVar(&configureClaudeScope, "scope", "user", "Configuration scope: user, local, or project")
 	rootCmd.AddCommand(configureClaudeCmd)
+}
+
+func setupInstallCmd() {
+	installCmd.Flags().StringVar(&installPrefix, "prefix", "", "`<dir>` to install into (default: /usr/local/bin if writable, else ~/.local/bin)")
+	installCmd.Flags().BoolVar(&installAddToPath, "add-to-path", false, "Append a PATH export to the user's shell rc if needed")
+	rootCmd.AddCommand(installCmd)
 }
