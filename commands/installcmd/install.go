@@ -99,7 +99,7 @@ func HandleInstallCmd(opts Options) {
 		}
 	}
 
-	utils.ConsoleLogger.Println("\nNext: register the MCP server with Claude Code:")
+	utils.ConsoleLogger.Println("\nNext, in your OS shell (not inside Claude Code), register the MCP server:")
 	utils.ConsoleLogger.Println("  claude mcp add --scope user xmlui xmlui mcp")
 }
 
