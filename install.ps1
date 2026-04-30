@@ -1,11 +1,21 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [string]$Version = "",
   [string]$BaseUrl = "",
   [string]$Prefix = "",
-  [switch]$AddToPath = $true
+  [switch]$AddToPath = $true,
+  [switch]$NoAddToPath
 )
+
+$ErrorActionPreference = "Stop"
+
+$AddToPathSpecified = $PSBoundParameters.ContainsKey("AddToPath")
+if ($AddToPathSpecified -and $AddToPath -and $NoAddToPath) {
+  throw "xmlui install: -AddToPath and -NoAddToPath cannot be used together."
+}
+$ShouldAddToPath = $AddToPath
+if ($NoAddToPath) {
+  $ShouldAddToPath = $false
+}
 
 if (-not $Version) {
   $Version = if ($env:XMLUI_VERSION) { $env:XMLUI_VERSION } else { "latest" }
@@ -28,7 +38,7 @@ switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
 }
 
 if ($BaseUrl) {
-  $ResolvedBaseUrl = $BaseUrl
+  $ResolvedBaseUrl = $BaseUrl.TrimEnd("/")
 } elseif ($Version -eq "latest") {
   $ResolvedBaseUrl = "https://github.com/$Repo/releases/latest/download"
 } else {
@@ -87,15 +97,15 @@ try {
     throw "xmlui install: xmlui.exe not found in archive."
   }
 
-  $Args = @("install")
+  $InstallArgs = @("install")
   if ($Prefix) {
-    $Args += @("--prefix", $Prefix)
+    $InstallArgs += @("--prefix", $Prefix)
   }
-  if ($AddToPath) {
-    $Args += "--add-to-path"
+  if ($ShouldAddToPath) {
+    $InstallArgs += "--add-to-path"
   }
 
-  & $Binary.FullName @Args
+  & $Binary.FullName @InstallArgs
 } finally {
   Remove-Item -LiteralPath $TempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
