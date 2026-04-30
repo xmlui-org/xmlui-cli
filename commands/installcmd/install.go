@@ -14,8 +14,8 @@ import (
 
 // Options configure the install command.
 type Options struct {
-	Prefix     string
-	AddToPath  bool
+	Prefix    string
+	AddToPath bool
 }
 
 // HandleInstallCmd copies the running binary to a directory on PATH (or to
@@ -99,8 +99,8 @@ func HandleInstallCmd(opts Options) {
 		}
 	}
 
-	utils.ConsoleLogger.Println("\nNext: register the MCP server with your client.")
-	utils.ConsoleLogger.Println("Run the appropriate configure-* command shown in 'xmlui --help'.")
+	utils.ConsoleLogger.Println("\nNext, in your OS shell (not inside Claude Code), register the MCP server:")
+	utils.ConsoleLogger.Println("  claude mcp add --scope user xmlui xmlui mcp")
 }
 
 // pickInstallDir prefers /usr/local/bin if it's writable (or doesn't exist
