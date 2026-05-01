@@ -99,8 +99,9 @@ func HandleInstallCmd(opts Options) {
 		}
 	}
 
-	utils.ConsoleLogger.Println("\nNext, in your OS shell (not inside Claude Code), register the MCP server:")
+	utils.ConsoleLogger.Println("\nNext, if you are using Claude Code or Codex, register the MCP server:")
 	utils.ConsoleLogger.Println("  claude mcp add --scope user xmlui xmlui mcp")
+	utils.ConsoleLogger.Println("  codex mcp add xmlui -- xmlui mcp")
 }
 
 // pickInstallDir prefers /usr/local/bin if it's writable (or doesn't exist
