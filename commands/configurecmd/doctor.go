@@ -16,9 +16,14 @@ import (
 type DoctorOptions struct{}
 
 type registration struct {
-	source  string // human-readable origin
-	command string
-	args    []string
+	source         string // human-readable origin
+	command        string
+	args           []string
+	transportType  string // codex only: "stdio", "streamable_http", etc.
+	url            string // codex streamable_http transport
+	enabled        bool   // codex only: codex tracks enabled/disabled state
+	disabledReason string // codex only: reason if disabled
+	isCodex        bool   // marks codex registrations so reportReg can show extra fields
 }
 
 // HandleDoctorCmd scans every place an xmlui MCP server registration could
@@ -31,11 +36,11 @@ func HandleDoctorCmd(_ DoctorOptions) {
 	claudeJSON := filepath.Join(homeDir, ".claude.json")
 
 	utils.ConsoleLogger.Printf("~/.claude.json (%s):\n", claudeJSON)
-	regs := scanClaudeJSON(claudeJSON)
-	if len(regs) == 0 {
+	claudeRegs := scanClaudeJSON(claudeJSON)
+	if len(claudeRegs) == 0 {
 		utils.ConsoleLogger.Println("  no xmlui entry at user scope or in any project entry")
 	} else {
-		for _, r := range regs {
+		for _, r := range claudeRegs {
 			reportReg(r)
 		}
 	}
@@ -54,16 +59,40 @@ func HandleDoctorCmd(_ DoctorOptions) {
 			}
 		}
 		utils.ConsoleLogger.Println("")
-		regs = append(regs, projectRegs...)
+		claudeRegs = append(claudeRegs, projectRegs...)
 	}
 
-	switch len(regs) {
-	case 0:
-		utils.ConsoleLogger.Println("Summary: no xmlui MCP server registered. Run 'claude mcp add --scope user xmlui xmlui mcp'.")
-	case 1:
-		utils.ConsoleLogger.Println("Summary: 1 xmlui MCP server registration found.")
+	utils.ConsoleLogger.Println("Codex (codex mcp list --json):")
+	codexRegs, codexErr := scanCodex()
+	switch {
+	case codexErr == errCodexNotInstalled:
+		utils.ConsoleLogger.Println("  codex CLI not on PATH — skipping")
+	case codexErr != nil:
+		utils.ConsoleLogger.Printf("  error: %v\n", codexErr)
+	case len(codexRegs) == 0:
+		utils.ConsoleLogger.Println("  no xmlui entry")
 	default:
-		utils.ConsoleLogger.Printf("Summary: %d xmlui MCP server registrations found. Multiple registrations may cause duplicate or missing tools — keep one.\n", len(regs))
+		for _, r := range codexRegs {
+			reportReg(r)
+		}
+	}
+	utils.ConsoleLogger.Println("")
+
+	total := len(claudeRegs) + len(codexRegs)
+	switch {
+	case total == 0:
+		utils.ConsoleLogger.Println("Summary: no xmlui MCP server registered. Run 'claude mcp add --scope user xmlui xmlui mcp' or 'codex mcp add xmlui -- xmlui mcp'.")
+	case len(claudeRegs) > 1:
+		utils.ConsoleLogger.Printf("Summary: %d Claude registrations found across scopes. Multiple Claude registrations may cause duplicate or missing tools — keep one.\n", len(claudeRegs))
+	default:
+		var tools []string
+		if len(claudeRegs) > 0 {
+			tools = append(tools, "Claude")
+		}
+		if len(codexRegs) > 0 {
+			tools = append(tools, "Codex")
+		}
+		utils.ConsoleLogger.Printf("Summary: xmlui registered in %s.\n", strings.Join(tools, " and "))
 	}
 }
 
@@ -148,13 +177,30 @@ func extractServerEntry(servers map[string]interface{}, source string) *registra
 
 func reportReg(r registration) {
 	utils.ConsoleLogger.Printf("%s\n", r.source)
-	utils.ConsoleLogger.Printf("    command: %s\n", r.command)
-	utils.ConsoleLogger.Printf("    args:    %v\n", r.args)
+	if r.isCodex {
+		utils.ConsoleLogger.Printf("    transport: %s\n", r.transportType)
+		if r.transportType == "streamable_http" {
+			utils.ConsoleLogger.Printf("    url:      %s\n", r.url)
+		}
+		if r.enabled {
+			utils.ConsoleLogger.Printf("    enabled:  true\n")
+		} else {
+			utils.ConsoleLogger.Printf("    enabled:  false (%s)\n", r.disabledReason)
+		}
+	}
+	if r.command != "" {
+		utils.ConsoleLogger.Printf("    command: %s\n", r.command)
+	}
+	if len(r.args) > 0 {
+		utils.ConsoleLogger.Printf("    args:    %v\n", r.args)
+	}
 
-	binStatus, version := inspectBinary(r.command)
-	utils.ConsoleLogger.Printf("    binary:  %s\n", binStatus)
-	if version != "" {
-		utils.ConsoleLogger.Printf("    version: %s\n", version)
+	if r.command != "" {
+		binStatus, version := inspectBinary(r.command)
+		utils.ConsoleLogger.Printf("    binary:  %s\n", binStatus)
+		if version != "" {
+			utils.ConsoleLogger.Printf("    version: %s\n", version)
+		}
 	}
 }
 
