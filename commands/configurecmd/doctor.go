@@ -209,7 +209,19 @@ func inspectBinary(command string) (status, version string) {
 		return "no command set", ""
 	}
 
-	info, err := os.Stat(command)
+	// Resolve the command the way the OS will at spawn time (execvp
+	// semantics). Stat'ing a bare name like "xmlui" would probe it
+	// relative to doctor's cwd — from a directory that happens to
+	// contain an "xmlui" entry, that misreports a working PATH
+	// registration as MISSING.
+	path := command
+	if resolved, lookErr := exec.LookPath(command); lookErr == nil {
+		path = resolved
+	} else if !strings.ContainsAny(command, `/\`) {
+		return fmt.Sprintf("MISSING (%v)", lookErr), ""
+	}
+
+	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "MISSING (no such file)", ""
@@ -223,20 +235,25 @@ func inspectBinary(command string) (status, version string) {
 		return "not executable", ""
 	}
 
-	base := filepath.Base(command)
+	okStatus := "ok"
+	if path != command {
+		okStatus = "ok (" + path + ")"
+	}
+
+	base := filepath.Base(path)
 	if base == "bash" || base == "sh" || base == "zsh" {
-		return "ok (shell wrapper — version not checked)", ""
+		return okStatus + " (shell wrapper — version not checked)", ""
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, command, "--version").CombinedOutput()
+	out, err := exec.CommandContext(ctx, path, "--version").CombinedOutput()
 	if err != nil {
-		return "ok (--version failed: " + strings.TrimSpace(err.Error()) + ")", ""
+		return okStatus + " (--version failed: " + strings.TrimSpace(err.Error()) + ")", ""
 	}
 	v := strings.TrimSpace(string(out))
 	if i := strings.IndexByte(v, '\n'); i >= 0 {
 		v = v[:i]
 	}
-	return "ok", v
+	return okStatus, v
 }
